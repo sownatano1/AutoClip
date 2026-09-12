@@ -7,6 +7,60 @@ from pathlib import Path
 import autoclip
 
 
+def _youtube_common_options() -> dict:
+    node_path = shutil.which("node")
+    if not node_path:
+        raise RuntimeError("Node.js não foi encontrado no runner; ele é necessário para resolver os desafios do YouTube.")
+
+    opts = {
+        "noplaylist": True,
+        "quiet": True,
+        "no_warnings": False,
+        # YouTube now requires an external JS challenge solver for many formats.
+        "js_runtimes": {"node": {"path": node_path}},
+        "remote_components": {"ejs:github"},
+        # Datacenter/IP bot checks: use mweb together with the automatic PO token provider.
+        "extractor_args": {
+            "youtube": {"player_client": ["mweb"]},
+            "youtubepot-bgutilhttp": {
+                "base_url": [os.getenv("YOUTUBE_POT_PROVIDER_URL", "http://127.0.0.1:4416")]
+            },
+        },
+    }
+
+    cookie_file = os.getenv("YOUTUBE_COOKIES_FILE", "").strip()
+    if cookie_file and Path(cookie_file).is_file():
+        opts["cookiefile"] = cookie_file
+    return opts
+
+
+def validate_youtube_session(url: str) -> None:
+    import yt_dlp
+
+    autoclip.validate_youtube_url(url)
+    cookie_file = os.getenv("YOUTUBE_COOKIES_FILE", "").strip()
+    if not cookie_file or not Path(cookie_file).is_file():
+        raise RuntimeError(
+            "Sessão do YouTube ausente. Atualize o Secret YOUTUBE_COOKIES_B64 antes de processar."
+        )
+
+    opts = _youtube_common_options()
+    opts.update({"skip_download": True})
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as exc:
+        raise RuntimeError(
+            "Sessão do YouTube inválida ou rotacionada. Exporte cookies novos de uma sessão "
+            "privada/incógnita dedicada e atualize YOUTUBE_COOKIES_B64. "
+            f"Detalhe: {exc}"
+        ) from exc
+
+    if not info:
+        raise RuntimeError("YouTube não retornou dados do vídeo durante a validação da sessão.")
+    print("YouTube: sessão válida", flush=True)
+
+
 def cookie_aware_download(url: str, target_dir: Path):
     import yt_dlp
 
@@ -34,40 +88,20 @@ def cookie_aware_download(url: str, target_dir: Path):
         elif d.get("status") == "finished":
             autoclip.progress("Download", 25, "Concluído; preparando arquivo")
 
-    node_path = shutil.which("node")
-    if not node_path:
-        raise RuntimeError("Node.js não foi encontrado no runner; ele é necessário para resolver os desafios do YouTube.")
+    opts = _youtube_common_options()
+    opts.update(
+        {
+            "format": "bv*[height<=720]+ba/b[height<=720]/best[height<=720]/best",
+            "merge_output_format": "mp4",
+            "outtmpl": template,
+            "restrictfilenames": True,
+            "progress_hooks": [hook],
+            "concurrent_fragment_downloads": 1,
+        }
+    )
 
-    opts = {
-        "format": "bv*[height<=720]+ba/b[height<=720]/best[height<=720]/best",
-        "merge_output_format": "mp4",
-        "outtmpl": template,
-        "noplaylist": True,
-        "quiet": True,
-        "no_warnings": False,
-        "restrictfilenames": True,
-        "progress_hooks": [hook],
-        "concurrent_fragment_downloads": 1,
-        # YouTube now requires an external JS challenge solver for many formats.
-        # GitHub's Ubuntu runner ships Node 24, which is supported by yt-dlp.
-        "js_runtimes": {"node": {"path": node_path}},
-        # Keep the GitHub EJS component fallback enabled even though the
-        # yt-dlp[default] dependency group installs yt-dlp-ejs locally.
-        "remote_components": {"ejs:github"},
-        # Datacenter/IP bot checks: use mweb together with the automatic PO token provider.
-        "extractor_args": {
-            "youtube": {"player_client": ["mweb"]},
-            "youtubepot-bgutilhttp": {
-                "base_url": [os.getenv("YOUTUBE_POT_PROVIDER_URL", "http://127.0.0.1:4416")]
-            },
-        },
-    }
-
-    cookie_file = os.getenv("YOUTUBE_COOKIES_FILE", "").strip()
-    if cookie_file and Path(cookie_file).is_file():
-        opts["cookiefile"] = cookie_file
+    if opts.get("cookiefile"):
         autoclip.progress("Download", 3, "Sessão do YouTube carregada pelo Secret")
-
     autoclip.progress("Download", 4, "PO Token + EJS/Node habilitados para o YouTube")
 
     with yt_dlp.YoutubeDL(opts) as ydl:
@@ -84,8 +118,12 @@ def cookie_aware_download(url: str, target_dir: Path):
 
 
 def main() -> None:
-    autoclip.download_youtube = cookie_aware_download
     url = os.environ["YOUTUBE_URL"]
+    if os.getenv("YOUTUBE_PREFLIGHT_ONLY", "").strip().lower() in {"1", "true", "yes"}:
+        validate_youtube_session(url)
+        return
+
+    autoclip.download_youtube = cookie_aware_download
     clips = max(1, min(3, int(os.getenv("CLIPS_PER_SOURCE", "3"))))
     min_seconds = max(20, int(os.getenv("MIN_CLIP_SECONDS", "60")))
     max_seconds = max(min_seconds, int(os.getenv("MAX_CLIP_SECONDS", "180")))
