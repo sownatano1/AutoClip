@@ -56,6 +56,8 @@ jobs:
       CLOUDINARY_FOLDER: ${{ vars.CLOUDINARY_FOLDER || 'autoclips' }}
       BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
       BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
+      YOUTUBE_COOKIES_B64: ${{ secrets.YOUTUBE_COOKIES_B64 }}
+      YOUTUBE_COOKIES_FILE: ${{ github.workspace }}/youtube-cookies.txt
 
     steps:
       - name: Baixar projeto
@@ -84,14 +86,21 @@ jobs:
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -r requirements.txt
 
+      - name: Preparar sessão do YouTube
+        if: ${{ env.YOUTUBE_COOKIES_B64 != '' }}
+        shell: bash
+        run: |
+          printf '%s' "$YOUTUBE_COOKIES_B64" | base64 --decode > "$YOUTUBE_COOKIES_FILE"
+          chmod 600 "$YOUTUBE_COOKIES_FILE"
+          test -s "$YOUTUBE_COOKIES_FILE"
+          echo "Cookies do YouTube preparados com segurança."
+
       - name: Validar configuração
         run: python autoclip.py --check
 
       - name: Processar, publicar no Cloudinary e enviar ao Buffer
-        run: |
-          python autoclip.py \
-            --url "$YOUTUBE_URL" \
-            --clips "$CLIPS_PER_SOURCE" \
-            --min-seconds "$MIN_CLIP_SECONDS" \
-            --max-seconds "$MAX_CLIP_SECONDS" \
-            --whisper-model "$WHISPER_MODEL"
+        run: python runner.py
+
+      - name: Limpar sessão temporária do YouTube
+        if: ${{ always() }}
+        run: rm -f "$YOUTUBE_COOKIES_FILE"
