@@ -1,0 +1,7 @@
+requests>=2.32,<3
+yt-dlp>=2026.8.27
+openai-whisper==20250625
+opencv-python-headless>=4.12,<5
+numpy>=2.0,<3
+google-genai>=1.36,<2
+cloudinary>=1.40,<2
