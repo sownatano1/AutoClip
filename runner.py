@@ -25,7 +25,11 @@ def cookie_aware_download(url: str, target_dir: Path):
                     last_pct = pct
                     eta = d.get("eta")
                     eta_text = f" · ~{int(eta)}s" if isinstance(eta, (int, float)) and eta >= 0 else ""
-                    autoclip.progress("Download", 5 + int(pct * 0.20), f"{pct}%{autoclip.human_speed(d.get('speed'))}{eta_text}")
+                    autoclip.progress(
+                        "Download",
+                        5 + int(pct * 0.20),
+                        f"{pct}%{autoclip.human_speed(d.get('speed'))}{eta_text}",
+                    )
         elif d.get("status") == "finished":
             autoclip.progress("Download", 25, "Concluído; preparando arquivo")
 
@@ -35,10 +39,18 @@ def cookie_aware_download(url: str, target_dir: Path):
         "outtmpl": template,
         "noplaylist": True,
         "quiet": True,
-        "no_warnings": True,
+        "no_warnings": False,
         "restrictfilenames": True,
         "progress_hooks": [hook],
         "concurrent_fragment_downloads": 1,
+        # Current yt-dlp recommendation for datacenter/IP bot checks:
+        # use the mweb client together with an automatic PO Token provider.
+        "extractor_args": {
+            "youtube": {"player_client": ["mweb"]},
+            "youtubepot-bgutilhttp": {
+                "base_url": [os.getenv("YOUTUBE_POT_PROVIDER_URL", "http://127.0.0.1:4416")]
+            },
+        },
     }
 
     cookie_file = os.getenv("YOUTUBE_COOKIES_FILE", "").strip()
@@ -46,10 +58,16 @@ def cookie_aware_download(url: str, target_dir: Path):
         opts["cookiefile"] = cookie_file
         autoclip.progress("Download", 3, "Sessão do YouTube carregada pelo Secret")
 
+    autoclip.progress("Download", 4, "PO Token Provider habilitado para o YouTube")
+
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
 
-    files = [p for p in target_dir.glob("source.*") if p.suffix.lower() in {".mp4", ".mkv", ".webm", ".mov"}]
+    files = [
+        p
+        for p in target_dir.glob("source.*")
+        if p.suffix.lower() in {".mp4", ".mkv", ".webm", ".mov"}
+    ]
     if not files:
         raise RuntimeError("Download terminou, mas nenhum vídeo foi encontrado.")
     return max(files, key=lambda p: p.stat().st_size), info
