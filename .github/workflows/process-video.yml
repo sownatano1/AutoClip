@@ -86,7 +86,22 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -r requirements.txt
-          python -m pip install -U bgutil-ytdlp-pot-provider
+          python -m pip install -U "yt-dlp[default]" bgutil-ytdlp-pot-provider
+
+      - name: Verificar runtime JavaScript do YouTube
+        shell: bash
+        run: |
+          command -v node
+          node --version
+          python - <<'PY'
+          import yt_dlp
+          try:
+              import yt_dlp_ejs
+              print("yt-dlp-ejs: OK")
+          except Exception as exc:
+              raise SystemExit(f"yt-dlp-ejs não disponível: {exc}")
+          print("yt-dlp:", yt_dlp.version.__version__)
+          PY
 
       - name: Iniciar PO Token Provider do YouTube
         shell: bash
