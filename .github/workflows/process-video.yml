@@ -58,6 +58,7 @@ jobs:
       BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
       YOUTUBE_COOKIES_B64: ${{ secrets.YOUTUBE_COOKIES_B64 }}
       YOUTUBE_COOKIES_FILE: ${{ github.workspace }}/youtube-cookies.txt
+      YOUTUBE_POT_PROVIDER_URL: http://127.0.0.1:4416
 
     steps:
       - name: Baixar projeto
@@ -85,6 +86,16 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -r requirements.txt
+          python -m pip install -U bgutil-ytdlp-pot-provider
+
+      - name: Iniciar PO Token Provider do YouTube
+        shell: bash
+        run: |
+          docker run --rm -d --name autoclips-pot-provider \
+            -p 127.0.0.1:4416:4416 \
+            brainicism/bgutil-ytdlp-pot-provider
+          sleep 3
+          docker ps --filter name=autoclips-pot-provider
 
       - name: Preparar sessão do YouTube
         if: ${{ env.YOUTUBE_COOKIES_B64 != '' }}
@@ -104,3 +115,7 @@ jobs:
       - name: Limpar sessão temporária do YouTube
         if: ${{ always() }}
         run: rm -f "$YOUTUBE_COOKIES_FILE"
+
+      - name: Encerrar PO Token Provider
+        if: ${{ always() }}
+        run: docker rm -f autoclips-pot-provider 2>/dev/null || true
