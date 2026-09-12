@@ -17,10 +17,8 @@ def _youtube_common_options() -> dict:
         "noplaylist": True,
         "quiet": True,
         "no_warnings": False,
-        # YouTube now requires an external JS challenge solver for many formats.
         "js_runtimes": {"node": {"path": node_path}},
         "remote_components": {"ejs:github"},
-        # Datacenter/IP bot checks: use mweb together with the automatic PO token provider.
         "extractor_args": {
             "youtube": {"player_client": ["mweb"]},
             "youtubepot-bgutilhttp": {
@@ -118,6 +116,16 @@ def cookie_aware_download(url: str, target_dir: Path):
     return max(files, key=lambda p: p.stat().st_size), info
 
 
+class PreviewBufferClient:
+    """Keep the full pipeline intact while preventing test clips from entering TikTok queue."""
+    def __init__(self):
+        pass
+
+    def add_video_to_queue(self, video_url: str, text: str) -> str:
+        print(f"PREVIEW: vídeo disponível no Cloudinary: {video_url}", flush=True)
+        return "PREVIEW_ONLY"
+
+
 def main() -> None:
     url = os.environ["YOUTUBE_URL"]
     if os.getenv("YOUTUBE_PREFLIGHT_ONLY", "").strip().lower() in {"1", "true", "yes"}:
@@ -125,6 +133,11 @@ def main() -> None:
         return
 
     autoclip.download_youtube = cookie_aware_download
+    auto_publish = os.getenv("AUTO_PUBLISH", "false").strip().lower() in {"1", "true", "yes"}
+    if not auto_publish:
+        autoclip.BufferClient = PreviewBufferClient
+        print("Modo PREVIEW ativo: os cortes não serão enviados ao Buffer/TikTok.", flush=True)
+
     clips = max(1, min(3, int(os.getenv("CLIPS_PER_SOURCE", "3"))))
     min_seconds = max(20, int(os.getenv("MIN_CLIP_SECONDS", "60")))
     max_seconds = max(min_seconds, int(os.getenv("MAX_CLIP_SECONDS", "180")))
