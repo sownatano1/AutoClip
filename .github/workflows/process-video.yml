@@ -146,6 +146,11 @@ jobs:
           test -s "$YOUTUBE_COOKIES_FILE"
           echo "Cookies do YouTube preparados com segurança."
 
+      - name: Validar sessão do YouTube antes do processamento
+        env:
+          YOUTUBE_PREFLIGHT_ONLY: "true"
+        run: python runner.py
+
       - name: Validar configuração
         run: python autoclip.py --check
 
