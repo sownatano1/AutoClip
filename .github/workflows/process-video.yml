@@ -29,6 +29,11 @@ on:
         options:
           - base
           - tiny
+      publish_to_buffer:
+        description: "Enviar os cortes ao Buffer/TikTok? (deixe desmarcado enquanto estivermos testando)"
+        required: true
+        default: false
+        type: boolean
 
 concurrency:
   group: autoclips-processing
@@ -46,6 +51,7 @@ jobs:
       RIGHTS_CONFIRMED: ${{ inputs.rights_confirmed }}
       CLIPS_PER_SOURCE: ${{ inputs.clips }}
       WHISPER_MODEL: ${{ inputs.whisper_model }}
+      AUTO_PUBLISH: ${{ inputs.publish_to_buffer }}
       MIN_CLIP_SECONDS: "60"
       MAX_CLIP_SECONDS: "180"
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -100,6 +106,7 @@ jobs:
           echo "Cloudinary: OK"
 
       - name: Validar Buffer e canal TikTok
+        if: ${{ inputs.publish_to_buffer }}
         shell: bash
         run: |
           python - <<'PY'
@@ -154,7 +161,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar, publicar no Cloudinary e enviar ao Buffer
+      - name: Processar vídeo com Quality v2
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
