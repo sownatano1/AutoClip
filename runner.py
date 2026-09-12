@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 import autoclip
+import quality_v2
 
 
 def _youtube_common_options() -> dict:
@@ -127,8 +128,8 @@ def main() -> None:
     clips = max(1, min(3, int(os.getenv("CLIPS_PER_SOURCE", "3"))))
     min_seconds = max(20, int(os.getenv("MIN_CLIP_SECONDS", "60")))
     max_seconds = max(min_seconds, int(os.getenv("MAX_CLIP_SECONDS", "180")))
-    whisper_model = os.getenv("WHISPER_MODEL", "tiny")
-    autoclip.run(url, clips, min_seconds, max_seconds, whisper_model)
+    whisper_model = os.getenv("WHISPER_MODEL", "base")
+    quality_v2.run(url, clips, min_seconds, max_seconds, whisper_model)
 
 
 if __name__ == "__main__":
