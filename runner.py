@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from pathlib import Path
 
 import autoclip
@@ -33,8 +34,12 @@ def cookie_aware_download(url: str, target_dir: Path):
         elif d.get("status") == "finished":
             autoclip.progress("Download", 25, "Concluído; preparando arquivo")
 
+    node_path = shutil.which("node")
+    if not node_path:
+        raise RuntimeError("Node.js não foi encontrado no runner; ele é necessário para resolver os desafios do YouTube.")
+
     opts = {
-        "format": "bv*[height<=720]+ba/b[height<=720]/best[height<=720]",
+        "format": "bv*[height<=720]+ba/b[height<=720]/best[height<=720]/best",
         "merge_output_format": "mp4",
         "outtmpl": template,
         "noplaylist": True,
@@ -43,8 +48,13 @@ def cookie_aware_download(url: str, target_dir: Path):
         "restrictfilenames": True,
         "progress_hooks": [hook],
         "concurrent_fragment_downloads": 1,
-        # Current yt-dlp recommendation for datacenter/IP bot checks:
-        # use the mweb client together with an automatic PO Token provider.
+        # YouTube now requires an external JS challenge solver for many formats.
+        # GitHub's Ubuntu runner ships Node 24, which is supported by yt-dlp.
+        "js_runtimes": {"node": {"path": node_path}},
+        # Keep the GitHub EJS component fallback enabled even though the
+        # yt-dlp[default] dependency group installs yt-dlp-ejs locally.
+        "remote_components": {"ejs:github"},
+        # Datacenter/IP bot checks: use mweb together with the automatic PO token provider.
         "extractor_args": {
             "youtube": {"player_client": ["mweb"]},
             "youtubepot-bgutilhttp": {
@@ -58,7 +68,7 @@ def cookie_aware_download(url: str, target_dir: Path):
         opts["cookiefile"] = cookie_file
         autoclip.progress("Download", 3, "Sessão do YouTube carregada pelo Secret")
 
-    autoclip.progress("Download", 4, "PO Token Provider habilitado para o YouTube")
+    autoclip.progress("Download", 4, "PO Token + EJS/Node habilitados para o YouTube")
 
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=True)
