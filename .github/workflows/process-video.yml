@@ -22,13 +22,13 @@ on:
           - "2"
           - "3"
       whisper_model:
-        description: "Modelo Whisper (tiny = mais rápido; base = mais preciso)"
+        description: "Modelo Whisper (base = recomendado; tiny = teste rápido)"
         required: true
-        default: "tiny"
+        default: "base"
         type: choice
         options:
-          - tiny
           - base
+          - tiny
 
 concurrency:
   group: autoclips-processing
