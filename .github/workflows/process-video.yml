@@ -88,6 +88,31 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -U "yt-dlp[default]" bgutil-ytdlp-pot-provider
 
+      - name: Validar Cloudinary antes do processamento
+        shell: bash
+        run: |
+          test -n "$CLOUDINARY_CLOUD_NAME"
+          test -n "$CLOUDINARY_API_KEY"
+          test -n "$CLOUDINARY_API_SECRET"
+          curl --fail --silent --show-error \
+            --user "$CLOUDINARY_API_KEY:$CLOUDINARY_API_SECRET" \
+            "https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/ping" >/dev/null
+          echo "Cloudinary: OK"
+
+      - name: Validar Buffer e canal TikTok
+        shell: bash
+        run: |
+          python - <<'PY'
+          import autoclip
+          try:
+              channel = autoclip.BufferClient().channel_id()
+          except Exception as exc:
+              raise SystemExit(f"Buffer/TikTok não validado: {exc}")
+          if not channel:
+              raise SystemExit("Buffer/TikTok não validado: nenhum canal TikTok conectado foi encontrado")
+          print("Buffer/TikTok: OK")
+          PY
+
       - name: Verificar runtime JavaScript do YouTube
         shell: bash
         run: |
