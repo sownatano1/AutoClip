@@ -1,0 +1,97 @@
+name: AutoClip - Processar vídeo
+
+on:
+  workflow_dispatch:
+    inputs:
+      youtube_url:
+        description: "Link do YouTube"
+        required: true
+        type: string
+      rights_confirmed:
+        description: "Confirmo que tenho direito/permissão para reutilizar este conteúdo"
+        required: true
+        default: false
+        type: boolean
+      clips:
+        description: "Quantidade de cortes"
+        required: true
+        default: "3"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+      whisper_model:
+        description: "Modelo Whisper (tiny = mais rápido; base = mais preciso)"
+        required: true
+        default: "tiny"
+        type: choice
+        options:
+          - tiny
+          - base
+
+concurrency:
+  group: autoclips-processing
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+
+    env:
+      YOUTUBE_URL: ${{ inputs.youtube_url }}
+      RIGHTS_CONFIRMED: ${{ inputs.rights_confirmed }}
+      CLIPS_PER_SOURCE: ${{ inputs.clips }}
+      WHISPER_MODEL: ${{ inputs.whisper_model }}
+      MIN_CLIP_SECONDS: "60"
+      MAX_CLIP_SECONDS: "180"
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+      CLOUDINARY_FOLDER: ${{ vars.CLOUDINARY_FOLDER || 'autoclips' }}
+      BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+      BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Cache do modelo Whisper
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/whisper
+          key: whisper-${{ runner.os }}-${{ inputs.whisper_model }}
+
+      - name: Instalar FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+
+      - name: Instalar dependências
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          python -m pip install -r requirements.txt
+
+      - name: Validar configuração
+        run: python autoclip.py --check
+
+      - name: Processar, publicar no Cloudinary e enviar ao Buffer
+        run: |
+          python autoclip.py \
+            --url "$YOUTUBE_URL" \
+            --clips "$CLIPS_PER_SOURCE" \
+            --min-seconds "$MIN_CLIP_SECONDS" \
+            --max-seconds "$MAX_CLIP_SECONDS" \
+            --whisper-model "$WHISPER_MODEL"
