@@ -133,6 +133,7 @@ def main() -> None:
         return
 
     autoclip.download_youtube = cookie_aware_download
+    quality_v6._ORIGINAL_DOWNLOAD = cookie_aware_download
     auto_publish = os.getenv("AUTO_PUBLISH", "false").strip().lower() in {"1", "true", "yes"}
     if not auto_publish:
         autoclip.BufferClient = PreviewBufferClient
