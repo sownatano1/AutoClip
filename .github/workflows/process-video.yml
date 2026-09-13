@@ -38,6 +38,22 @@ on:
           - English
           - "Português (Brasil)"
           - "Idioma original"
+      content_profile:
+        description: "Perfil do conteúdo (Auto tenta detectar sozinho)"
+        required: true
+        default: "Auto"
+        type: choice
+        options:
+          - Auto
+          - "Podcast/Entrevista"
+          - "Talking Head"
+          - Gameplay
+          - "Filme/Série"
+      show_context_hook:
+        description: "Mostrar hook contextual no topo por ~2 segundos?"
+        required: true
+        default: true
+        type: boolean
       publish_to_buffer:
         description: "Enviar os cortes ao Buffer/TikTok? (deixe desmarcado enquanto estivermos testando)"
         required: true
@@ -61,6 +77,8 @@ jobs:
       CLIPS_PER_SOURCE: ${{ inputs.clips }}
       WHISPER_MODEL: ${{ inputs.whisper_model }}
       SUBTITLE_LANGUAGE: ${{ inputs.subtitle_language }}
+      CONTENT_PROFILE: ${{ inputs.content_profile }}
+      SHOW_CONTEXT_HOOK: ${{ inputs.show_context_hook }}
       AUTO_PUBLISH: ${{ inputs.publish_to_buffer }}
       MIN_CLIP_SECONDS: "60"
       MAX_CLIP_SECONDS: "180"
@@ -171,7 +189,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v5
+      - name: Processar vídeo com Quality v6
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
