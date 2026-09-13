@@ -38,7 +38,7 @@ def _caption_chunks(text: str, max_words: int = 4, max_chars: int = 24) -> list[
 
 
 def write_compact_ass(segments: list[dict], start: float, end: float, target: Path) -> None:
-    """Same lower-screen placement as v4, with a small size increase."""
+    """Same lower-screen placement as v4, with a moderate size increase."""
     header = """[Script Info]
 ScriptType: v4.00+
 PlayResX: 1080
@@ -48,7 +48,7 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Default,DejaVu Sans,54,&H00FFFFFF,&H000000FF,&H00000000,&H50000000,0,0,0,0,100,100,0,0,1,2.6,0,2,90,90,155,1
+Style: Default,DejaVu Sans,60,&H00FFFFFF,&H000000FF,&H00000000,&H50000000,0,0,0,0,100,100,0,0,1,2.8,0,2,90,90,155,1
 
 [Events]
 Format: Layer,Start,End,Style,Name,MarginL,MarginR,MarginV,Effect,Text
@@ -185,7 +185,7 @@ def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_
         q4.write_compact_ass = write_compact_ass
         q4.q2.prepare_clip_content = prepare_clip_content
         language = _normalize_language(os.getenv("SUBTITLE_LANGUAGE", "English"))
-        autoclip.log(f"Legendas: idioma={language} · fonte=54 · posição inferior preservada")
+        autoclip.log(f"Legendas: idioma={language} · fonte=60 · posição inferior preservada")
         q4.run(url, clips_count, min_seconds, max_seconds, whisper_model)
     finally:
         q4.write_compact_ass = original_writer
