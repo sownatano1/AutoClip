@@ -29,6 +29,15 @@ on:
         options:
           - base
           - tiny
+      subtitle_language:
+        description: "Idioma da legenda"
+        required: true
+        default: "English"
+        type: choice
+        options:
+          - English
+          - "Português (Brasil)"
+          - "Idioma original"
       publish_to_buffer:
         description: "Enviar os cortes ao Buffer/TikTok? (deixe desmarcado enquanto estivermos testando)"
         required: true
@@ -51,6 +60,7 @@ jobs:
       RIGHTS_CONFIRMED: ${{ inputs.rights_confirmed }}
       CLIPS_PER_SOURCE: ${{ inputs.clips }}
       WHISPER_MODEL: ${{ inputs.whisper_model }}
+      SUBTITLE_LANGUAGE: ${{ inputs.subtitle_language }}
       AUTO_PUBLISH: ${{ inputs.publish_to_buffer }}
       MIN_CLIP_SECONDS: "60"
       MAX_CLIP_SECONDS: "180"
@@ -161,7 +171,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v2
+      - name: Processar vídeo com Quality v5
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
