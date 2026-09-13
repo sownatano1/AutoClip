@@ -9,6 +9,8 @@ import autoclip
 import quality_v2 as q2
 import quality_v4 as q4
 
+_ORIGINAL_PREPARE = q2.prepare_clip_content
+
 
 def _normalize_language(value: str) -> str:
     text = (value or "English").strip().lower()
@@ -151,10 +153,10 @@ def prepare_clip_content(plans: list[q2.ClipPlan], segments: list[dict], source_
     language = _normalize_language(os.getenv("SUBTITLE_LANGUAGE", "English"))
     source = (source_language or "").lower()
 
-    # Portuguese keeps the existing translation path. English and Original bypass
+    # Portuguese keeps the previous translation path. English and Original bypass
     # Portuguese translation entirely, which is important for English-source podcasts.
     if language == "pt-BR":
-        return q2.prepare_clip_content(plans, segments, source_language)
+        return _ORIGINAL_PREPARE(plans, segments, source_language)
 
     prepared: list[dict] = []
     for plan in plans:
