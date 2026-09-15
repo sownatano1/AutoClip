@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import os
 import re
-from pathlib import Path
 
 import autoclip
 import quality_v2 as q2
@@ -67,7 +66,6 @@ def _clean_hook(text: str) -> str:
     text = " ".join(words).strip()
     text = text.rstrip(".,;:–—-")
 
-    # Extremely vague hooks do not help a first-time viewer.
     vague = {
         "this is why", "here is why", "this happened", "that happened", "the truth",
         "isso aconteceu", "é por isso", "e por isso", "a verdade",
@@ -106,11 +104,10 @@ def _window_score(text: str, start_rel: float) -> float:
         score -= 5.0
     low_words = {re.sub(r"[^\wÀ-ÿ'-]", "", w.lower()) for w in words}
     score += min(3.0, sum(1 for w in low_words if w in _IMPACT_WORDS) * 0.9)
-    if re.search(r"(?:[$€£R$]|\b\d[\d.,]*\b|\b\d+%\b)", clean):
+    if re.search(r"(?:[$€£]|R\$|\b\d[\d.,]*\b|\b\d+%\b)", clean):
         score += 2.4
     if "?" in clean:
         score += 0.8
-    # Prefer a strong statement near the beginning, but not blindly the first words.
     score += max(0.0, 2.0 - start_rel / 8.0)
     return score
 
@@ -136,9 +133,7 @@ def _fallback_hook(segments: list[dict], plan: q2.ClipPlan) -> str:
     if not candidates:
         return ""
     _, best = max(candidates, key=lambda item: item[0])
-    words = best.split()
-    hook = " ".join(words[:8])
-    return _clean_hook(hook)
+    return _clean_hook(" ".join(best.split()[:8]))
 
 
 def _recover_previous_hook(plan: q2.ClipPlan, existing: dict[tuple[float, float], str]) -> tuple[str, str]:
@@ -166,6 +161,75 @@ def _recover_previous_hook(plan: q2.ClipPlan, existing: dict[tuple[float, float]
     return "", "missing"
 
 
+def _clip_text(segments: list[dict], plan: q2.ClipPlan) -> str:
+    text = " ".join(
+        re.sub(r"\s+", " ", str(s.get("text") or "")).strip()
+        for s in segments
+        if float(s.get("end", 0)) > plan.start and float(s.get("start", 0)) < plan.end
+    ).strip()
+    # Enough context for a hook without bloating a single batch request.
+    return text[:1800]
+
+
+def _refine_hooks_batch(
+    plans: list[q2.ClipPlan], segments: list[dict], source_title: str, seeds: list[str]
+) -> dict[int, str]:
+    """One optional AI call for all final hooks; failure leaves deterministic seeds intact."""
+    if not os.getenv("GEMINI_API_KEY", "").strip():
+        return {}
+
+    payload = []
+    for idx, (plan, seed) in enumerate(zip(plans, seeds), 1):
+        payload.append(
+            {
+                "clip": idx,
+                "seed_hook": seed,
+                "clip_text": _clip_text(segments, plan),
+            }
+        )
+
+    prompt = f"""Você é o revisor FINAL de hooks visuais para TikTok/Reels/Shorts.
+O hook ficará no TOPO do vídeo por alguns segundos. Reescreva um hook por corte depois que a edição já foi definida.
+
+REGRAS:
+- 4 a 8 palavras; prefira 5–7 quando possível.
+- Deve ser compreensível imediatamente para alguém que nunca viu o vídeo.
+- Seja natural e humano, não pareça título robótico.
+- Crie curiosidade sobre a tensão/ideia central sem inventar nada e sem entregar desnecessariamente todo o payoff.
+- Preserve números, nomes e fatos somente quando aparecem no texto do corte.
+- Evite começar com pronome sem referente: "he", "she", "they", "it", "ele", "ela", "isso".
+- NÃO use clickbait genérico como "You won't believe", "Watch until the end", "This is crazy", "Você não vai acreditar".
+- NÃO escreva "Hook:" nem coloque aspas.
+- Não use ALL CAPS.
+- Uma pergunta curta é permitida somente se ela for realmente sustentada pelo corte; caso contrário use uma frase declarativa.
+- {q6._hook_language()}
+
+Responda SOMENTE JSON válido:
+{{"hooks":[{{"clip":1,"hook":"..."}}]}}
+
+Fonte: {source_title}
+CORTES:
+{payload}
+"""
+    try:
+        data = q2._gemini_json(prompt, attempts=1)
+    except Exception as exc:
+        autoclip.log(f"Hook Guard: revisão semântica indisponível; mantendo fallback: {exc}")
+        return {}
+
+    refined: dict[int, str] = {}
+    if isinstance(data, dict) and isinstance(data.get("hooks"), list):
+        for item in data["hooks"]:
+            try:
+                idx = int(item.get("clip"))
+            except Exception:
+                continue
+            hook = _clean_hook(item.get("hook") or "")
+            if hook:
+                refined[idx] = hook
+    return refined
+
+
 def select_v9_5(
     segments: list[dict], min_seconds: int, max_seconds: int, count: int, source_title: str
 ) -> list[q2.ClipPlan]:
@@ -179,10 +243,23 @@ def select_v9_5(
         return plans
 
     previous = dict(q6.HOOK_BY_BOUNDS)
+    seeds: list[str] = []
+    sources: list[str] = []
+    for plan in plans:
+        hook, source = _recover_previous_hook(plan, previous)
+        if not hook:
+            hook = _fallback_hook(segments, plan)
+            source = "extractive_fallback" if hook else "unavailable"
+        seeds.append(hook)
+        sources.append(source)
+
+    refined = _refine_hooks_batch(plans, segments, source_title, seeds)
     final_hooks: dict[tuple[float, float], str] = {}
 
     for idx, plan in enumerate(plans, 1):
-        hook, source = _recover_previous_hook(plan, previous)
+        hook = refined.get(idx) or seeds[idx - 1]
+        source = "final_ai_review" if idx in refined else sources[idx - 1]
+        hook = _clean_hook(hook)
         if not hook:
             hook = _fallback_hook(segments, plan)
             source = "extractive_fallback" if hook else "unavailable"
@@ -225,9 +302,9 @@ def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_
                     f"exibição até **{q61._hook_duration():g}s**"
                 )
         autoclip.summary(
-            "\nO Hook Guard reassocia o texto ao intervalo FINAL do corte depois da revisão de encerramento. "
-            "Se o hook original não estiver disponível, usa uma frase factual curta extraída do próprio clip, "
-            "evitando clickbait genérico e mantendo no máximo 8 palavras.\n"
+            "\nO Hook Guard reassocia o texto ao intervalo FINAL depois da revisão de encerramento, "
+            "faz uma revisão semântica em lote quando o Gemini está disponível e mantém um fallback factual "
+            "extraído do próprio clip se a IA estiver indisponível. Hooks genéricos/clickbait são rejeitados.\n"
         )
     finally:
         q93.select_v9_3 = original_selector
