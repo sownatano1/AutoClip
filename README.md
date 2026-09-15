@@ -1,4 +1,4 @@
-# AutoClip Actions — Quality v9.3
+# AutoClip Actions — Quality v9.4
 
 O AutoClip processa um link do YouTube em GitHub Actions, escolhe histórias curtas com contexto e payoff, cria edição vertical 1080×1920, legendas, hook, capa automática, direção visual e uma revisão automática antes do upload. Quando autorizado, envia os vídeos ao Cloudinary e à fila do Buffer/TikTok.
 
@@ -6,38 +6,46 @@ O computador pessoal não precisa permanecer ligado depois que o workflow começ
 
 ## Fluxo
 
-YouTube → Whisper → análise do vídeo inteiro → perfil de conteúdo → duração inteligente → revisão do encerramento → cenas/falantes → Visual Director → enquadramento por rosto → render → Auto Review → correção automática quando necessária → capa → Cloudinary → Buffer → TikTok.
+YouTube → Whisper → análise do vídeo inteiro → perfil de conteúdo → duração inteligente → revisão do encerramento → cenas/falantes → Active Speaker Lock → Visual Director → enquadramento por rosto → render → Auto Review → correção automática quando necessária → capa → Cloudinary → Buffer → TikTok.
+
+## Quality v9.4 — Active Speaker Lock
+
+A v9.4 preserva a v9.3 e melhora principalmente clips com várias pessoas no mesmo enquadramento.
+
+- **Prioridade real para quem está falando** — durante Podcast/Entrevista e Talking Head, o sistema amostra o plano várias vezes por segundo e compara a atividade específica da região da boca de cada rosto.
+- **Áudio + Whisper como gate** — movimento facial só conta fortemente quando há fala detectada naquele instante. A energia do áudio ajuda a evitar que uma pessoa gesticulando ou mexendo a cabeça seja confundida com o falante.
+- **Tamanho do rosto não domina mais** — uma pessoa grande ou central no quadro recebe apenas um bônus mínimo. O movimento labial durante fala passa a ser o principal sinal.
+- **Active speaker locking** — depois que um falante é identificado, o enquadramento permanece nele durante pequenos momentos ambíguos. A câmera só troca para outra pessoa quando a evidência persiste por vários frames.
+- **Troca sustentada de falante** — se outra pessoa começa realmente a falar, o mesmo plano pode ser subdividido e o crop passa para ela sem esperar um corte artificial longo.
+- **Melhor comportamento com 3+ pessoas** — os rostos são acompanhados como trilhas locais dentro do plano; o sistema compara as pessoas visíveis em vez de manter o foco na posição escolhida anteriormente.
+- **Split-screen protegido** — quando um split coincide com fala ativa, a pessoa superior é corrigida para o falante detectado. A segunda tela precisa ser outra pessoa distinta e persistente; se isso não puder ser comprovado, o sistema abandona o split e mostra apenas o falante.
 
 ## Quality v9.3 — Final Guard + Auto Review
 
-A v9.3 preserva a v9.2 e acrescenta uma camada de controle de qualidade.
+- **Proteção do final** — revisa se alguém foi cortado no meio da fala, se a ideia ficou incompleta ou se o clip avançou para o começo de outro assunto.
+- **Correção do encerramento** — pode avançar até a conclusão da mesma ideia ou voltar ao fechamento anterior.
+- **Auto Review do MP4** — revisa resolução, legendas, centralização dos rostos e consistência do split-screen.
+- **Auto-correção visual** — problemas corrigíveis podem provocar uma segunda renderização automática.
+- **Falha crítica bloqueia upload** — resolução incorreta ou legenda estruturalmente inválida impede o envio.
+- **Legenda tamanho 70** — branca, inferior, uniforme e sem destaque automático.
 
-- **Proteção do final** — depois da escolha do trecho, uma revisão editorial específica analisa o final de todos os cortes em uma única etapa. O sistema verifica se alguém foi cortado no meio da fala, se a ideia ficou incompleta, se existe um fechamento melhor ou se o corte avançou para o começo de um assunto novo.
-- **Correção do encerramento** — quando necessário, o final pode avançar até a conclusão da mesma ideia ou voltar para o fechamento imediatamente anterior ao novo assunto. O tempo é alinhado aos finais de segmentos do Whisper.
-- **Auto Review do MP4** — depois do primeiro render, o AutoClip revisa resolução, timing/estrutura das legendas, centralização dos rostos e consistência do split-screen.
-- **Auto-correção visual** — se o rosto estiver persistentemente fora do enquadramento, o clip é renderizado novamente uma vez usando um crop mais rigoroso e centralizado.
-- **Auto-correção do split** — se um split final não apresentar duas telas válidas ou parecer duplicado, aquele split é removido na segunda renderização e o plano volta para a pessoa principal.
-- **Falha crítica bloqueia upload** — resolução incorreta ou legenda estruturalmente inválida impede o upload, em vez de publicar um arquivo quebrado.
-- **Legenda tamanho 70** — as legendas permanecem uniformes, brancas, inferiores e sem destaque automático de palavras, agora em tamanho 70.
+## Split-screen e enquadramento
 
-## Split-screen e enquadramento da v9.2 preservados
-
-- **Split-screen adaptativo** — não possui duração fixa por evento. Começa quando duas pessoas distintas permanecem relevantes e termina quando essa condição deixa de existir.
-- **Duas identidades distintas** — falante e ouvinte são validados no mesmo frame; faces sobrepostas/próximas demais são rejeitadas.
-- **Face-box + eye-line** — posição X/Y e tamanho do rosto são usados no crop. O rosto tende a ficar no terço superior quando a fonte permite.
-- **Painéis independentes** — cada metade do split tem crop próprio para sua pessoa.
+- **Split-screen adaptativo** — não possui duração fixa; começa e termina conforme a presença/relevância de duas pessoas distintas.
+- **Duas identidades distintas** — falante e ouvinte são validados no mesmo frame.
+- **Face-box + eye-line** — posição X/Y e tamanho do rosto são usados para calcular o crop.
+- **Painéis independentes** — cada metade do split recebe enquadramento próprio.
 
 O conjunto dos splits continua com orçamento total para não dominar o vídeo inteiro.
 
 ## Visual Director
 
 - **Visual Attention Engine** — mede atividade visual e pode criar um punch-in estático quando o plano fica parado demais.
-- **Split-screen inteligente** — em Podcast/Entrevista, mostra falante + segunda pessoa somente quando as duas identidades são válidas e persistentes.
+- **Split-screen inteligente** — em Podcast/Entrevista, mostra falante + segunda pessoa quando as duas identidades são válidas e persistentes.
 - **Reaction emphasis** — reações fortes podem receber um close curto antes de voltar ao falante.
 
 ## Recursos preservados
 
-- **Falante consciente** — combina timing do Whisper, energia do áudio, rostos e atividade facial.
 - **Detecção de cenas** — respeita mudanças de câmera/cena do vídeo original.
 - **Perfis** — `Auto`, `Podcast/Entrevista`, `Talking Head`, `Gameplay` e `Filme/Série`.
 - **Duração inteligente** — trabalha entre 25 e 150 s e tenta usar o menor trecho que entregue contexto + desenvolvimento + payoff.
@@ -54,20 +62,21 @@ Permanecem:
 - **Reaction emphasis**
 - **Auto Review** — ativado por padrão; revisa e tenta corrigir o clip antes do upload.
 
-A antiga opção de destaque inteligente das legendas continua removida.
+O Active Speaker Lock da v9.4 é automático nos perfis Podcast/Entrevista e Talking Head.
 
 ## Como testar
 
 1. Abra **Actions → AutoClip - Processar vídeo → Run workflow**.
 2. Cole o link do YouTube.
 3. Confirme que possui direito/permissão para reutilizar o conteúdo.
-4. Para avaliar a v9.3, use `1` corte, Whisper `base`, legenda `English` e perfil `Podcast/Entrevista`.
-5. Deixe Visual Attention, Split-screen, Reaction emphasis e **Auto Review** ativados.
-6. Mantenha hook e capa ativados.
-7. Deixe **Enviar ao Buffer/TikTok** desmarcado durante o teste.
-8. Execute o workflow.
+4. Para avaliar a v9.4, use `1` corte, Whisper `base`, legenda `English` e perfil `Podcast/Entrevista`.
+5. Escolha de preferência um vídeo com 3 ou mais pessoas aparecendo juntas e troca frequente de falante.
+6. Deixe Visual Attention, Split-screen, Reaction emphasis e **Auto Review** ativados.
+7. Mantenha hook e capa ativados.
+8. Deixe **Enviar ao Buffer/TikTok** desmarcado durante o teste.
+9. Execute o workflow.
 
-O Job Summary mostra a revisão do encerramento e informa se o Auto Review aprovou o clip diretamente ou precisou aplicar uma correção automática.
+O Job Summary preserva as informações do Auto Review e também registra a camada Active Speaker v9.4.
 
 ## Secrets obrigatórios
 
