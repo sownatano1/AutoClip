@@ -59,11 +59,6 @@ on:
         required: true
         default: "8"
         type: string
-      smart_subtitle_emphasis:
-        description: "Destacar discretamente palavras importantes na legenda?"
-        required: true
-        default: true
-        type: boolean
       natural_loop:
         description: "Preferir final que faça loop natural quando isso funcionar?"
         required: true
@@ -75,7 +70,7 @@ on:
         default: true
         type: boolean
       smart_split_screen:
-        description: "Usar split-screen curto quando falante e reação forem relevantes?"
+        description: "Usar split-screen quando falante e reação forem relevantes?"
         required: true
         default: true
         type: boolean
@@ -130,7 +125,6 @@ jobs:
       CONTENT_PROFILE: ${{ inputs.content_profile }}
       SHOW_CONTEXT_HOOK: ${{ inputs.show_context_hook }}
       HOOK_DURATION_SECONDS: ${{ inputs.hook_duration_seconds }}
-      SMART_SUBTITLE_EMPHASIS: ${{ inputs.smart_subtitle_emphasis }}
       NATURAL_LOOP: ${{ inputs.natural_loop }}
       VISUAL_ATTENTION_ENGINE: ${{ inputs.visual_attention_engine }}
       SMART_SPLIT_SCREEN: ${{ inputs.smart_split_screen }}
@@ -248,7 +242,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v9
+      - name: Processar vídeo com Quality v9.1
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
