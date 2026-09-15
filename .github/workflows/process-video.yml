@@ -59,6 +59,16 @@ on:
         required: true
         default: "8"
         type: string
+      smart_subtitle_emphasis:
+        description: "Destacar discretamente palavras importantes na legenda?"
+        required: true
+        default: true
+        type: boolean
+      natural_loop:
+        description: "Preferir final que faça loop natural quando isso funcionar?"
+        required: true
+        default: true
+        type: boolean
       create_cover:
         description: "Criar capa/thumbnail automática?"
         required: true
@@ -105,12 +115,14 @@ jobs:
       CONTENT_PROFILE: ${{ inputs.content_profile }}
       SHOW_CONTEXT_HOOK: ${{ inputs.show_context_hook }}
       HOOK_DURATION_SECONDS: ${{ inputs.hook_duration_seconds }}
+      SMART_SUBTITLE_EMPHASIS: ${{ inputs.smart_subtitle_emphasis }}
+      NATURAL_LOOP: ${{ inputs.natural_loop }}
       CREATE_COVER: ${{ inputs.create_cover }}
       COVER_STYLE: ${{ inputs.cover_style }}
       COVER_DURATION_SECONDS: ${{ inputs.cover_duration_seconds }}
       AUTO_PUBLISH: ${{ inputs.publish_to_buffer }}
-      MIN_CLIP_SECONDS: "60"
-      MAX_CLIP_SECONDS: "180"
+      MIN_CLIP_SECONDS: "25"
+      MAX_CLIP_SECONDS: "150"
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
       CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
@@ -218,7 +230,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v7
+      - name: Processar vídeo com Quality v8
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
