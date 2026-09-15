@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 import autoclip
-import quality_v9_8
+import quality_v9_9
 
 
 def _youtube_common_options() -> dict:
@@ -135,7 +135,7 @@ def main() -> None:
 
     autoclip.download_youtube = cookie_aware_download
     # Preserve the authenticated YouTube downloader through every quality wrapper.
-    quality_v9_8.q97.q6._ORIGINAL_DOWNLOAD = cookie_aware_download
+    quality_v9_9.q97.q6._ORIGINAL_DOWNLOAD = cookie_aware_download
     auto_publish = os.getenv("AUTO_PUBLISH", "false").strip().lower() in {"1", "true", "yes"}
     if not auto_publish:
         autoclip.BufferClient = PreviewBufferClient
@@ -145,7 +145,7 @@ def main() -> None:
     min_seconds = max(20, int(os.getenv("MIN_CLIP_SECONDS", "25")))
     max_seconds = max(min_seconds, int(os.getenv("MAX_CLIP_SECONDS", "150")))
     whisper_model = os.getenv("WHISPER_MODEL", "base")
-    quality_v9_8.run(url, clips, min_seconds, max_seconds, whisper_model)
+    quality_v9_9.run(url, clips, min_seconds, max_seconds, whisper_model)
 
 
 if __name__ == "__main__":
