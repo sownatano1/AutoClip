@@ -12,27 +12,38 @@ def _clean(value) -> str:
 
 def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
     title = _clean(source.get("title", ""))
+    metadata_tags = [_clean(x) for x in (source.get("tags") or []) if _clean(x)]
 
-    # Find a franchise immediately before ':' instead of swallowing editorial words
-    # such as "Secret", "Exclusive" or a person's name earlier in the title.
-    for match in re.finditer(r"([A-Za-z0-9]+(?:-[A-Za-z0-9]+)?(?:\s+[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?){0,2})\s*:\s*", title):
-        left = match.group(1).strip()
-        left_words = left.split()
-        # The final title-cased token/group closest to ':' is usually the franchise.
-        while len(left_words) > 1 and left_words[0].casefold() in {
-            "secret", "exclusive", "new", "the", "her", "his", "their", "our", "about",
-        }:
-            left_words.pop(0)
-        if len(left_words) > 1:
-            # If the prefix still looks editorial, prefer the final franchise-like token.
-            editorial = {"secret", "exclusive", "about", "role", "talks", "opens", "reveals"}
-            while len(left_words) > 1 and left_words[0].casefold() in editorial:
-                left_words.pop(0)
-        left = " ".join(left_words)
+    for colon in [m.start() for m in re.finditer(":", title)]:
+        prefix = title[:colon].strip()
+        suffix = title[colon + 1:].strip()
 
-        rest = title[match.end():]
+        # Prefer an explicit metadata entity that occurs immediately before the colon.
+        matching = []
+        for tag in metadata_tags:
+            if ":" in tag:
+                continue
+            if q10._norm(tag) and q10._norm(prefix).endswith(q10._norm(tag)) and len(q10.q99._words(tag)) <= 4:
+                matching.append(tag)
+        if matching:
+            left = max(matching, key=len)
+        else:
+            words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", prefix)
+            if not words:
+                continue
+            # Hyphenated names like Spider-Man are strong franchise signals. Otherwise use the
+            # final two title-cased tokens only when they do not look like editorial prose.
+            if "-" in words[-1]:
+                left = words[-1]
+            elif len(words) >= 2 and all(w[:1].isupper() for w in words[-2:]) and words[-2].casefold() not in {
+                "talks", "about", "secret", "exclusive", "reveals", "opens", "her", "his", "the",
+            }:
+                left = " ".join(words[-2:])
+            else:
+                left = words[-1]
+
         right_words = []
-        for word in re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", rest):
+        for word in re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", suffix):
             if word.casefold() in {
                 "role", "interview", "exclusive", "trailer", "clip", "cast", "scene", "explained",
                 "breakdown", "reaction", "reacts", "talks", "opens", "reveals", "on", "with", "and",
@@ -45,11 +56,10 @@ def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
         if left and right_words:
             return f"{left}: {' '.join(right_words)}"
 
-    # Strong metadata tags are safer than guessing from prose.
-    for raw in source.get("tags") or []:
-        text = _clean(raw)
-        if ":" in text and 2 <= len(q10.q99._words(text)) <= 6:
-            return text
+    # An exact metadata title is safer than guessing from prose.
+    for raw in metadata_tags:
+        if ":" in raw and 2 <= len(q10.q99._words(raw)) <= 6:
+            return raw
 
     subject = q10.q99._franchise_subject(title)
     if subject:
