@@ -1,31 +1,39 @@
-# AutoClip Actions — Quality v9.2
+# AutoClip Actions — Quality v9.3
 
-O AutoClip processa um link do YouTube em GitHub Actions, escolhe histórias curtas com contexto e payoff, cria edição vertical 1080×1920, legendas, hook, capa automática e uma camada de direção visual. Quando autorizado, envia os vídeos ao Cloudinary e à fila do Buffer/TikTok.
+O AutoClip processa um link do YouTube em GitHub Actions, escolhe histórias curtas com contexto e payoff, cria edição vertical 1080×1920, legendas, hook, capa automática, direção visual e uma revisão automática antes do upload. Quando autorizado, envia os vídeos ao Cloudinary e à fila do Buffer/TikTok.
 
 O computador pessoal não precisa permanecer ligado depois que o workflow começa.
 
 ## Fluxo
 
-YouTube → Whisper → análise do vídeo inteiro → perfil de conteúdo → duração inteligente → contexto/final → cenas/falantes → Visual Director → enquadramento por rosto → legendas/hook → capa → Cloudinary → Buffer → TikTok.
+YouTube → Whisper → análise do vídeo inteiro → perfil de conteúdo → duração inteligente → revisão do encerramento → cenas/falantes → Visual Director → enquadramento por rosto → render → Auto Review → correção automática quando necessária → capa → Cloudinary → Buffer → TikTok.
 
-## Quality v9.2
+## Quality v9.3 — Final Guard + Auto Review
 
-A v9.2 preserva os recursos anteriores e corrige principalmente split-screen e enquadramento.
+A v9.3 preserva a v9.2 e acrescenta uma camada de controle de qualidade.
 
-- **Split-screen adaptativo** — não possui uma duração fixa por evento. O sistema amostra o plano continuamente e o split começa quando duas pessoas distintas permanecem relevantes no mesmo enquadramento; termina quando essa condição deixa de existir. Existe apenas um orçamento total de uso no clip para evitar exagero.
-- **Duas identidades realmente distintas** — falante e ouvinte são validados no mesmo frame. Detecções sobrepostas ou próximas demais são rejeitadas, evitando mostrar a mesma pessoa nas duas metades do split.
-- **Enquadramento por caixa facial** — o AutoClip deixa de usar somente um ponto horizontal. Ele acompanha posição X/Y, largura e altura do rosto em vários frames e calcula o crop usando a pessoa focal.
-- **Eye-line** — quando há espaço na fonte, o rosto é colocado aproximadamente no terço superior do quadro vertical, em vez de simplesmente centralizar o frame original. O tamanho do rosto também influencia o nível de crop.
-- **Split-screen também usa face-box** — cada painel recebe o enquadramento da sua própria pessoa, com posição vertical e zoom calculados separadamente.
-- **Legendas uniformes** — tamanho 65, posição inferior e sem destaque automático de palavras.
+- **Proteção do final** — depois da escolha do trecho, uma revisão editorial específica analisa o final de todos os cortes em uma única etapa. O sistema verifica se alguém foi cortado no meio da fala, se a ideia ficou incompleta, se existe um fechamento melhor ou se o corte avançou para o começo de um assunto novo.
+- **Correção do encerramento** — quando necessário, o final pode avançar até a conclusão da mesma ideia ou voltar para o fechamento imediatamente anterior ao novo assunto. O tempo é alinhado aos finais de segmentos do Whisper.
+- **Auto Review do MP4** — depois do primeiro render, o AutoClip revisa resolução, timing/estrutura das legendas, centralização dos rostos e consistência do split-screen.
+- **Auto-correção visual** — se o rosto estiver persistentemente fora do enquadramento, o clip é renderizado novamente uma vez usando um crop mais rigoroso e centralizado.
+- **Auto-correção do split** — se um split final não apresentar duas telas válidas ou parecer duplicado, aquele split é removido na segunda renderização e o plano volta para a pessoa principal.
+- **Falha crítica bloqueia upload** — resolução incorreta ou legenda estruturalmente inválida impede o upload, em vez de publicar um arquivo quebrado.
+- **Legenda tamanho 70** — as legendas permanecem uniformes, brancas, inferiores e sem destaque automático de palavras, agora em tamanho 70.
+
+## Split-screen e enquadramento da v9.2 preservados
+
+- **Split-screen adaptativo** — não possui duração fixa por evento. Começa quando duas pessoas distintas permanecem relevantes e termina quando essa condição deixa de existir.
+- **Duas identidades distintas** — falante e ouvinte são validados no mesmo frame; faces sobrepostas/próximas demais são rejeitadas.
+- **Face-box + eye-line** — posição X/Y e tamanho do rosto são usados no crop. O rosto tende a ficar no terço superior quando a fonte permite.
+- **Painéis independentes** — cada metade do split tem crop próprio para sua pessoa.
+
+O conjunto dos splits continua com orçamento total para não dominar o vídeo inteiro.
 
 ## Visual Director
 
 - **Visual Attention Engine** — mede atividade visual e pode criar um punch-in estático quando o plano fica parado demais.
-- **Split-screen inteligente** — em Podcast/Entrevista, mostra falante + segunda pessoa apenas quando as duas identidades são válidas e persistentes.
-- **Reaction emphasis** — reações fortes ainda podem receber um close curto antes de voltar ao falante.
-
-O split-screen não tem um cronômetro editorial fixo na v9.2. Ele acompanha a duração real da presença/relevância das duas pessoas. Para não dominar o vídeo inteiro, o conjunto dos splits possui um orçamento de aproximadamente 46% da duração do clip e um limite de eventos.
+- **Split-screen inteligente** — em Podcast/Entrevista, mostra falante + segunda pessoa somente quando as duas identidades são válidas e persistentes.
+- **Reaction emphasis** — reações fortes podem receber um close curto antes de voltar ao falante.
 
 ## Recursos preservados
 
@@ -33,33 +41,33 @@ O split-screen não tem um cronômetro editorial fixo na v9.2. Ele acompanha a d
 - **Detecção de cenas** — respeita mudanças de câmera/cena do vídeo original.
 - **Perfis** — `Auto`, `Podcast/Entrevista`, `Talking Head`, `Gameplay` e `Filme/Série`.
 - **Duração inteligente** — trabalha entre 25 e 150 s e tenta usar o menor trecho que entregue contexto + desenvolvimento + payoff.
-- **Final forte** — prioriza conclusão, resposta, punchline, surpresa, decisão ou afirmação forte.
 - **Loop natural** — quando existe, prefere um fim que reconecte bem ao começo sem duplicar falas.
 - **Hook contextual** — factual, curto, opcional e com duração configurável.
 - **Capa automática** — cria thumbnail 1080×1920 a partir de um frame forte do próprio clip.
 
-## Controles visuais
+## Controles no Run workflow
 
-No formulário **Run workflow** permanecem:
+Permanecem:
 
 - **Visual Attention Engine**
 - **Split-screen inteligente**
 - **Reaction emphasis**
+- **Auto Review** — ativado por padrão; revisa e tenta corrigir o clip antes do upload.
 
-A antiga opção de destaque inteligente das legendas foi removida.
+A antiga opção de destaque inteligente das legendas continua removida.
 
 ## Como testar
 
 1. Abra **Actions → AutoClip - Processar vídeo → Run workflow**.
 2. Cole o link do YouTube.
 3. Confirme que possui direito/permissão para reutilizar o conteúdo.
-4. Para avaliar a v9.2, use `1` corte, Whisper `base`, legenda `English` e perfil `Podcast/Entrevista`.
-5. Deixe Visual Attention, Split-screen e Reaction emphasis ativados.
+4. Para avaliar a v9.3, use `1` corte, Whisper `base`, legenda `English` e perfil `Podcast/Entrevista`.
+5. Deixe Visual Attention, Split-screen, Reaction emphasis e **Auto Review** ativados.
 6. Mantenha hook e capa ativados.
 7. Deixe **Enviar ao Buffer/TikTok** desmarcado durante o teste.
 8. Execute o workflow.
 
-O Job Summary mostra o vídeo, a capa, duração/final e a descrição da edição visual aplicada.
+O Job Summary mostra a revisão do encerramento e informa se o Auto Review aprovou o clip diretamente ou precisou aplicar uma correção automática.
 
 ## Secrets obrigatórios
 
