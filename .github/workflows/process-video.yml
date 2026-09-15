@@ -179,10 +179,10 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -U "yt-dlp[default]" bgutil-ytdlp-pot-provider
 
-      - name: Validar código Quality v9.11
+      - name: Validar código Quality v9.11.1
         run: |
-          python -m py_compile quality_v9_11.py runner.py
-          python -c "import quality_v9_11; print('Quality v9.11: import OK')"
+          python -m py_compile quality_v9_11.py quality_v9_11_1.py runner.py
+          python -c "import quality_v9_11_1; print('Quality v9.11.1: import OK')"
 
       - name: Validar Cloudinary antes do processamento
         shell: bash
@@ -251,7 +251,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v9.11 + Local-First Editor + Auto Review
+      - name: Processar vídeo com Quality v9.11.1 + Local-First Editor + Auto Review
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
