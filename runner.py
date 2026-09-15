@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 
 import autoclip
-import quality_v7
+import quality_v8
 
 
 def _youtube_common_options() -> dict:
@@ -133,17 +133,17 @@ def main() -> None:
         return
 
     autoclip.download_youtube = cookie_aware_download
-    quality_v7.q61.q6._ORIGINAL_DOWNLOAD = cookie_aware_download
+    quality_v8.q6._ORIGINAL_DOWNLOAD = cookie_aware_download
     auto_publish = os.getenv("AUTO_PUBLISH", "false").strip().lower() in {"1", "true", "yes"}
     if not auto_publish:
         autoclip.BufferClient = PreviewBufferClient
         print("Modo PREVIEW ativo: os cortes não serão enviados ao Buffer/TikTok.", flush=True)
 
     clips = max(1, min(3, int(os.getenv("CLIPS_PER_SOURCE", "3"))))
-    min_seconds = max(20, int(os.getenv("MIN_CLIP_SECONDS", "60")))
-    max_seconds = max(min_seconds, int(os.getenv("MAX_CLIP_SECONDS", "180")))
+    min_seconds = max(20, int(os.getenv("MIN_CLIP_SECONDS", "25")))
+    max_seconds = max(min_seconds, int(os.getenv("MAX_CLIP_SECONDS", "150")))
     whisper_model = os.getenv("WHISPER_MODEL", "base")
-    quality_v7.run(url, clips, min_seconds, max_seconds, whisper_model)
+    quality_v8.run(url, clips, min_seconds, max_seconds, whisper_model)
 
 
 if __name__ == "__main__":
