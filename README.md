@@ -1,48 +1,54 @@
-# AutoClip Actions — Quality v9.8
+# AutoClip Actions — Quality v9.9
 
-O AutoClip processa um link do YouTube em GitHub Actions, entende o contexto do vídeo antes de escolher os cortes, cria edição vertical 1080×1920, legendas, hook, capa, direção visual, revisão automática e legenda social para Buffer/TikTok.
+O AutoClip processa um link do YouTube em GitHub Actions, entende o contexto do vídeo antes de escolher os cortes, cria edição vertical 1080×1920, legendas, hook, capa, direção visual, revisão automática e uma legenda social contextual para Buffer/TikTok.
 
 O computador pessoal não precisa permanecer ligado depois que o workflow começa.
 
 ## Fluxo
 
-YouTube metadata/legendas → download → Whisper → **Source Intelligence** → seleção editorial → duração inteligente → Final Guard → Hook Guard → cenas/falantes → Active Speaker Lock → Camera Director → enquadramento → render → Auto Review → capa → Social Caption → Cloudinary → Buffer → TikTok.
+YouTube metadata/legendas → download → Whisper → **Source Intelligence** → seleção editorial → duração inteligente → Final Guard → Hook Guard → cenas/falantes → Active Speaker Lock → Camera Director → enquadramento → render → Auto Review → capa → **Social Caption Guard** → Cloudinary → Buffer → TikTok.
+
+## Quality v9.9 — Social Caption Guard
+
+A v9.9 corrige a geração de legenda social e hashtags, inclusive quando o Gemini está sem quota.
+
+- **Caption como título/hook do clipe** — a primeira linha descreve o que o espectador está prestes a assistir, em vez de simplesmente copiar a primeira fala da transcrição.
+- **Rejeita caption que parece legenda falada** — cópia literal ou quase literal do diálogo é descartada e substituída por uma formulação editorial.
+- **Contexto semântico** — usa título, descrição, tags, canal, Source Intelligence, mapa de assuntos e diálogo do corte.
+- **Fallback local inteligente** — se o Gemini retornar `429`, `503` ou estiver ausente, o sistema ainda cria uma caption usando o formato do vídeo e o contexto real.
+- **6–10 hashtags úteis** — a v9.9 prefere poucas tags fortes a uma lista longa preenchida com palavras aleatórias.
+- **Filtro duro de palavras vazias** — pronome, contração, artigo, verbo comum e tokens como `#Its`, `#Thats`, `#Im`, `#Say`, `#Think`, `#One` e equivalentes são rejeitados.
+- **Sem enchimento artificial** — `#viral`, `#fyp`, `#tiktok` e `#clips` não entram apenas para completar quantidade.
+- **Entidades e assuntos reais** — prioriza pessoa, franquia, filme/série/game, personagem, assunto e formato somente quando sustentados pelo metadata ou pelo próprio corte.
+- **Validação também para a IA** — mesmo hashtags sugeridas pelo Gemini passam pelo filtro semântico antes de chegar ao Buffer.
+
+Exemplo para um trecho de um Pop Quiz do elenco de Spider-Man em que precisam completar uma frase conhecida:
+
+`Can the Spider-Man Cast Finish This Iconic Quote?`
+
+Tags possíveis, quando sustentadas pelo vídeo/corte:
+
+`#SpiderMan #BrandNewDay #Marvel #MCU #Hulk #PopQuiz #Trivia #GQ`
 
 ## Quality v9.8 — Source Intelligence
 
-A v9.8 preserva tudo da v9.7 e adiciona uma etapa editorial **antes da escolha dos cortes**.
+A v9.8 adicionou uma etapa editorial **antes da escolha dos cortes**.
 
 - **Lê o título do YouTube** — o título deixa de ser apenas referência da fonte e passa a fazer parte do contexto editorial.
 - **Lê descrição, canal/uploader, tags, categorias e capítulos** — quando esses dados existem, ajudam o AutoClip a entender formato, tema, participantes e estrutura do vídeo.
 - **Tenta ler a legenda nativa do YouTube** — prioriza legenda manual e depois automática, usando formatos `json3` ou `vtt` quando disponíveis.
 - **Fallback seguro para Whisper** — se a legenda nativa estiver ausente, protegida ou não puder ser baixada, o processamento continua usando a transcrição completa do Whisper.
-- **Analisa a linha do tempo inteira** — a transcrição é compactada preservando começo, meio e fim, em vez de olhar apenas os primeiros minutos.
-- **Mapa de assuntos** — o Source Intelligence procura blocos de assunto, mudanças de tema, histórias/perguntas completas e possíveis transições.
+- **Analisa a linha do tempo inteira** — a transcrição é compactada preservando começo, meio e fim.
+- **Mapa de assuntos** — procura blocos de assunto, mudanças de tema, histórias/perguntas completas e possíveis transições.
 - **Contexto global + contexto local** — diferencia o assunto geral do vídeo da ideia específica de cada momento.
 - **Participantes de forma conservadora** — nomes/papéis só são usados quando título, descrição, legenda ou transcrição sustentam a informação; não há identificação de celebridades pelo rosto.
-- **Ajuda diretamente a seleção** — o seletor recebe o resumo, participantes, mapa de assuntos e orientação editorial antes de decidir `start` e `end`.
-- **Ajuda diretamente o Final Guard** — a mesma inteligência é passada para a revisão do encerramento, reduzindo cortes que terminam no meio de uma ideia ou já dentro do próximo assunto.
-- **Uma chamada consolidada** — quando Gemini está disponível, a análise da fonte usa uma única chamada adicional. Se a quota estiver indisponível, metadata, capítulos, descrição e Whisper ainda formam um fallback editorial.
+- **Ajuda diretamente a seleção e o Final Guard** — o mesmo mapa editorial é usado para decidir onde a ideia começa e onde realmente termina.
 
 A regra principal da v9.8 é: **primeiro entender o vídeo; depois escolher o corte**.
 
-O Job Summary mostra o título, canal, tipo de conteúdo, leitura global, participantes sustentados pelo contexto, quantidade de blocos de assunto e se a legenda nativa do YouTube foi usada ou se o Whisper serviu de fallback.
+## Quality v9.7 — Social Caption original
 
-## Quality v9.7 — Social Caption para Buffer/TikTok
-
-- **Contexto do vídeo + contexto do corte** — a publicação usa título, descrição, canal/uploader, tags, hook final e transcrição do corte.
-- **Pessoa pública de forma conservadora** — atores, YouTubers, músicos, atletas, diretores e creators podem entrar na legenda/hashtags quando metadata/transcrição sustentam essa atribuição.
-- **Legenda curta estilo hook** — normalmente 5–14 palavras, factual e específica ao corte.
-- **Hashtags para descoberta** — tenta produzir 12–18 hashtags únicas e relacionadas ao conteúdo.
-- **Tags específicas + amplas** — pode misturar pessoa pública, filme/série/franquia/game, assunto, interview/podcast, nicho e algumas tags amplas.
-- **Sem spam aleatório** — não inventa celebridades ou franquias apenas para alcançar views.
-- **Preview da publicação** — com Buffer desligado, o log mostra a legenda e as hashtags que seriam enviadas.
-
-Exemplo de formato quando o conteúdo realmente sustentar uma entrevista de Spider-Man:
-
-`Tom Holland on the moment everything changed`
-
-`#TomHolland #SpiderMan #Marvel #Zendaya #Interview #Movie #Actors #MCU #Film #Cinema #MovieClips #Entertainment #ViralClips #TikTok`
+A v9.7 introduziu a publicação contextual usando título, descrição, canal/uploader, tags, hook final e transcrição. A v9.9 substitui o fallback antigo que podia transformar palavras frequentes da transcrição em hashtags sem sentido.
 
 ## Quality v9.6 — Camera Director mais calmo
 
@@ -95,21 +101,22 @@ Exemplo de formato quando o conteúdo realmente sustentar uma entrevista de Spid
 - Legendas tamanho 70.
 - Capa automática 1080×1920.
 - Auto Review antes do upload.
-- Social Caption + hashtags para Buffer/TikTok.
+- Source Intelligence antes da seleção.
+- Social Caption Guard antes da publicação.
 
 ## Como testar
 
 1. Abra **Actions → AutoClip - Processar vídeo → Run workflow**.
 2. Cole o link do YouTube.
 3. Confirme que possui direito/permissão para reutilizar o conteúdo.
-4. Para avaliar a v9.8, use `1` corte e Whisper `base`.
+4. Para avaliar a v9.9, use `1` corte e Whisper `base`.
 5. Escolha o perfil adequado ou deixe `Auto`.
 6. Mantenha hook, Visual Attention, Split-screen, Reaction Emphasis e Auto Review conforme desejado.
 7. Mantenha a capa ativada.
 8. Deixe **Enviar ao Buffer/TikTok** desmarcado no primeiro teste.
 9. Execute o workflow.
 
-Procure no Job Summary por **Source Intelligence v9.8**. Ali aparece o que o sistema entendeu do vídeo **antes** de escolher o corte. No log de Preview também aparece a legenda social que seria enviada ao Buffer/TikTok.
+No log procure por `Social Caption Guard corte 1:` e por `PREVIEW: legenda Buffer/TikTok:`. No Job Summary aparecem **Source Intelligence v9.8** e **Social Caption Guard v9.9**.
 
 ## Secrets obrigatórios
 
