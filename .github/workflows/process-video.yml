@@ -50,10 +50,15 @@ on:
           - Gameplay
           - "Filme/Série"
       show_context_hook:
-        description: "Mostrar hook contextual no topo por ~2 segundos?"
+        description: "Mostrar hook contextual no topo?"
         required: true
         default: true
         type: boolean
+      hook_duration_seconds:
+        description: "Duração do hook no topo em segundos (1–15)"
+        required: true
+        default: "8"
+        type: string
       publish_to_buffer:
         description: "Enviar os cortes ao Buffer/TikTok? (deixe desmarcado enquanto estivermos testando)"
         required: true
@@ -79,6 +84,7 @@ jobs:
       SUBTITLE_LANGUAGE: ${{ inputs.subtitle_language }}
       CONTENT_PROFILE: ${{ inputs.content_profile }}
       SHOW_CONTEXT_HOOK: ${{ inputs.show_context_hook }}
+      HOOK_DURATION_SECONDS: ${{ inputs.hook_duration_seconds }}
       AUTO_PUBLISH: ${{ inputs.publish_to_buffer }}
       MIN_CLIP_SECONDS: "60"
       MAX_CLIP_SECONDS: "180"
@@ -189,7 +195,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v6
+      - name: Processar vídeo com Quality v6.1
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
