@@ -248,7 +248,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v9.5 + Hook Guard + Active Speaker + Auto Review
+      - name: Processar vídeo com Quality v9.6 + Camera Director + Hook Guard + Auto Review
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
