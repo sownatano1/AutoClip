@@ -1,4 +1,4 @@
-# AutoClip Actions — Quality v9.9
+# AutoClip Actions — Quality v9.10
 
 O AutoClip processa um link do YouTube em GitHub Actions, entende o contexto do vídeo antes de escolher os cortes, cria edição vertical 1080×1920, legendas, hook, capa, direção visual, revisão automática e uma legenda social contextual para Buffer/TikTok.
 
@@ -6,7 +6,27 @@ O computador pessoal não precisa permanecer ligado depois que o workflow começ
 
 ## Fluxo
 
-YouTube metadata/legendas → download → Whisper → **Source Intelligence** → seleção editorial → duração inteligente → Final Guard → Hook Guard → cenas/falantes → Active Speaker Lock → Camera Director → enquadramento → render → Auto Review → capa → **Social Caption Guard** → Cloudinary → Buffer → TikTok.
+YouTube metadata/legendas → download → Whisper → **Source Intelligence** → seleção editorial → duração inteligente → Final Guard → Hook Guard → cenas/falantes → Active Speaker Lock → Camera Director → enquadramento → render → Auto Review → capa → **Social Caption Guard** → **Entity Hashtag Intelligence** → Cloudinary → Buffer → TikTok.
+
+## Quality v9.10 — Entity Hashtag Intelligence
+
+A v9.10 preserva a caption da v9.9 e melhora especificamente as hashtags.
+
+- **Pessoa focal primeiro** — se o clip/caption gira em torno de uma pessoa pública sustentada pelo título, transcrição, tags ou Source Intelligence, o nome dela recebe prioridade nas hashtags.
+- **Participantes reais do vídeo** — outros atores/creators podem entrar quando aparecem no título, no próprio clip ou na lista contextual de participantes; não adiciona automaticamente todo o elenco de uma obra.
+- **Pessoa → personagem** — procura relações como `ator interpreta personagem` no metadata/contexto e, quando necessário, faz enriquecimento público opcional para relações que já se tornaram conhecidas.
+- **Confirmação contra rumores** — relações ator→personagem descobertas fora do vídeo só entram quando aparecem de forma não especulativa e corroborada; `rumored`, `reportedly`, `may play`, `could play` e equivalentes são rejeitados.
+- **Obra específica** — tenta distinguir a franquia da obra exata, por exemplo `Spider-Man` e `Spider-Man: Brand New Day`.
+- **Hierarquia de hashtags** — prioridade: pessoa focal → personagem confirmado → obra/franquia → universo/tema → participantes secundários → formato.
+- **Até 12 tags quando existem entidades fortes** — tags genéricas como `#Film`, `#Cast` e `#Interview` ficam para o fim e podem nem entrar se houver entidades melhores.
+- **Funciona sem Gemini** — a camada é posterior à Social Caption e continua operando quando a quota do Gemini está esgotada.
+- **Enriquecimento público não bloqueia o post** — Wikipedia/feeds públicos são apenas apoio; qualquer falha de rede mantém as tags locais existentes.
+
+Exemplo esperado para um clip centrado em Sadie Sink e sua personagem, quando a relação estiver confirmada:
+
+`Sadie Sink on her secret Marvel role`
+
+`#SadieSink #JeanGrey #SpiderMan #SpiderManBrandNewDay #Marvel #MCU #XMen ...`
 
 ## Quality v9.9 — Social Caption Guard
 
@@ -16,19 +36,10 @@ A v9.9 corrige a geração de legenda social e hashtags, inclusive quando o Gemi
 - **Rejeita caption que parece legenda falada** — cópia literal ou quase literal do diálogo é descartada e substituída por uma formulação editorial.
 - **Contexto semântico** — usa título, descrição, tags, canal, Source Intelligence, mapa de assuntos e diálogo do corte.
 - **Fallback local inteligente** — se o Gemini retornar `429`, `503` ou estiver ausente, o sistema ainda cria uma caption usando o formato do vídeo e o contexto real.
-- **6–10 hashtags úteis** — a v9.9 prefere poucas tags fortes a uma lista longa preenchida com palavras aleatórias.
+- **6–10 hashtags úteis na base** — a v9.10 pode reorganizar e expandir até 12 quando encontra entidades melhores.
 - **Filtro duro de palavras vazias** — pronome, contração, artigo, verbo comum e tokens como `#Its`, `#Thats`, `#Im`, `#Say`, `#Think`, `#One` e equivalentes são rejeitados.
 - **Sem enchimento artificial** — `#viral`, `#fyp`, `#tiktok` e `#clips` não entram apenas para completar quantidade.
-- **Entidades e assuntos reais** — prioriza pessoa, franquia, filme/série/game, personagem, assunto e formato somente quando sustentados pelo metadata ou pelo próprio corte.
 - **Validação também para a IA** — mesmo hashtags sugeridas pelo Gemini passam pelo filtro semântico antes de chegar ao Buffer.
-
-Exemplo para um trecho de um Pop Quiz do elenco de Spider-Man em que precisam completar uma frase conhecida:
-
-`Can the Spider-Man Cast Finish This Iconic Quote?`
-
-Tags possíveis, quando sustentadas pelo vídeo/corte:
-
-`#SpiderMan #BrandNewDay #Marvel #MCU #Hulk #PopQuiz #Trivia #GQ`
 
 ## Quality v9.8 — Source Intelligence
 
@@ -48,7 +59,7 @@ A regra principal da v9.8 é: **primeiro entender o vídeo; depois escolher o co
 
 ## Quality v9.7 — Social Caption original
 
-A v9.7 introduziu a publicação contextual usando título, descrição, canal/uploader, tags, hook final e transcrição. A v9.9 substitui o fallback antigo que podia transformar palavras frequentes da transcrição em hashtags sem sentido.
+A v9.7 introduziu a publicação contextual usando título, descrição, canal/uploader, tags, hook final e transcrição. A v9.9 substituiu o fallback antigo que podia transformar palavras frequentes da transcrição em hashtags sem sentido.
 
 ## Quality v9.6 — Camera Director mais calmo
 
@@ -103,20 +114,21 @@ A v9.7 introduziu a publicação contextual usando título, descrição, canal/u
 - Auto Review antes do upload.
 - Source Intelligence antes da seleção.
 - Social Caption Guard antes da publicação.
+- Entity Hashtag Intelligence antes do Buffer/TikTok.
 
 ## Como testar
 
 1. Abra **Actions → AutoClip - Processar vídeo → Run workflow**.
 2. Cole o link do YouTube.
 3. Confirme que possui direito/permissão para reutilizar o conteúdo.
-4. Para avaliar a v9.9, use `1` corte e Whisper `base`.
+4. Para avaliar a v9.10, use `1` corte e Whisper `base`.
 5. Escolha o perfil adequado ou deixe `Auto`.
 6. Mantenha hook, Visual Attention, Split-screen, Reaction Emphasis e Auto Review conforme desejado.
 7. Mantenha a capa ativada.
 8. Deixe **Enviar ao Buffer/TikTok** desmarcado no primeiro teste.
 9. Execute o workflow.
 
-No log procure por `Social Caption Guard corte 1:` e por `PREVIEW: legenda Buffer/TikTok:`. No Job Summary aparecem **Source Intelligence v9.8** e **Social Caption Guard v9.9**.
+No log procure por `Entity Hashtag Intelligence corte 1:` e depois por `PREVIEW: legenda Buffer/TikTok:`. O Job Summary mostra pessoa focal, personagem confirmado, participantes secundários, obra/franquia e hashtags finais.
 
 ## Secrets obrigatórios
 
