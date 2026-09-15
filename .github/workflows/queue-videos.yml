@@ -1,0 +1,292 @@
+name: AutoClip - Fila de vídeos
+
+on:
+  workflow_dispatch:
+    inputs:
+      youtube_urls:
+        description: "Até 30 links do YouTube; separe por espaço, vírgula ou nova linha"
+        required: true
+        type: string
+      rights_confirmed:
+        description: "Confirmo que tenho direito/permissão para reutilizar estes conteúdos"
+        required: true
+        default: false
+        type: boolean
+      clips:
+        description: "Quantidade de cortes por vídeo"
+        required: true
+        default: "3"
+        type: choice
+        options:
+          - "1"
+          - "2"
+          - "3"
+      whisper_model:
+        description: "Modelo Whisper"
+        required: true
+        default: "base"
+        type: choice
+        options:
+          - base
+          - tiny
+      subtitle_language:
+        description: "Idioma da legenda"
+        required: true
+        default: "English"
+        type: choice
+        options:
+          - English
+          - "Português (Brasil)"
+          - "Idioma original"
+      content_profile:
+        description: "Perfil do conteúdo"
+        required: true
+        default: "Auto"
+        type: choice
+        options:
+          - Auto
+          - "Podcast/Entrevista"
+          - "Talking Head"
+          - Gameplay
+          - "Filme/Série"
+      show_context_hook:
+        description: "Mostrar hook contextual no topo?"
+        required: true
+        default: true
+        type: boolean
+      hook_duration_seconds:
+        description: "Duração do hook no topo em segundos"
+        required: true
+        default: "8"
+        type: string
+      natural_loop:
+        description: "Preferir loop natural quando funcionar?"
+        required: true
+        default: true
+        type: boolean
+      visual_attention_engine:
+        description: "Ativar Visual Attention Engine?"
+        required: true
+        default: true
+        type: boolean
+      smart_split_screen:
+        description: "Usar split-screen inteligente?"
+        required: true
+        default: true
+        type: boolean
+      reaction_emphasis:
+        description: "Dar ênfase visual a reações fortes?"
+        required: true
+        default: true
+        type: boolean
+      auto_review:
+        description: "Ativar Auto Review?"
+        required: true
+        default: true
+        type: boolean
+      create_cover:
+        description: "Criar capa automática?"
+        required: true
+        default: true
+        type: boolean
+      cover_style:
+        description: "Estilo da capa"
+        required: true
+        default: "Auto"
+        type: choice
+        options:
+          - Auto
+          - Clean
+          - Bold
+          - Cinematic
+      cover_duration_seconds:
+        description: "Tempo da capa no início"
+        required: true
+        default: "0.8"
+        type: string
+      publish_to_buffer:
+        description: "Enviar os cortes ao Buffer/TikTok?"
+        required: true
+        default: false
+        type: boolean
+
+jobs:
+  prepare_queue:
+    name: Preparar fila
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.queue.outputs.matrix }}
+      count: ${{ steps.queue.outputs.count }}
+    steps:
+      - name: Validar e montar fila
+        id: queue
+        shell: bash
+        env:
+          URLS_INPUT: ${{ inputs.youtube_urls }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+
+          raw = os.environ.get("URLS_INPUT", "").strip()
+          parts = [x.strip() for x in re.split(r"[\s,;]+", raw) if x.strip()]
+          urls = []
+          invalid = []
+          seen = set()
+
+          for value in parts:
+              valid = value.startswith(("https://", "http://")) and (
+                  "youtube.com/" in value or "youtu.be/" in value
+              )
+              if not valid:
+                  invalid.append(value)
+                  continue
+              if value not in seen:
+                  seen.add(value)
+                  urls.append(value)
+
+          if invalid:
+              raise SystemExit("Link(s) inválido(s): " + ", ".join(invalid[:5]))
+          if not urls:
+              raise SystemExit("Nenhum link do YouTube foi encontrado.")
+          if len(urls) > 30:
+              raise SystemExit(f"Máximo de 30 vídeos por fila; recebidos: {len(urls)}")
+
+          matrix = {
+              "include": [
+                  {"index": index, "url": url}
+                  for index, url in enumerate(urls, start=1)
+              ]
+          }
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              fh.write("matrix=" + json.dumps(matrix, separators=(",", ":")) + "\n")
+              fh.write(f"count={len(urls)}\n")
+
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as fh:
+              fh.write(f"## Fila AutoClip\n\n**{len(urls)} vídeo(s)** adicionados. Processamento sequencial: **1 por vez**.\n\n")
+              for index, url in enumerate(urls, start=1):
+                  fh.write(f"{index}. `{url}`\n")
+          PY
+
+  queue:
+    name: Vídeo ${{ matrix.index }}/${{ needs.prepare_queue.outputs.count }}
+    needs: prepare_queue
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.prepare_queue.outputs.matrix) }}
+
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VIDEO_URL: ${{ matrix.url }}
+      VIDEO_INDEX: ${{ matrix.index }}
+      VIDEO_COUNT: ${{ needs.prepare_queue.outputs.count }}
+
+    steps:
+      - name: Mostrar posição da fila
+        run: |
+          echo "Vídeo ${VIDEO_INDEX}/${VIDEO_COUNT}"
+          echo "$VIDEO_URL"
+
+      - name: Iniciar processamento deste vídeo
+        id: dispatch
+        shell: bash
+        env:
+          RIGHTS: ${{ inputs.rights_confirmed }}
+          CLIPS: ${{ inputs.clips }}
+          WHISPER: ${{ inputs.whisper_model }}
+          SUBTITLE: ${{ inputs.subtitle_language }}
+          PROFILE: ${{ inputs.content_profile }}
+          SHOW_HOOK: ${{ inputs.show_context_hook }}
+          HOOK_DURATION: ${{ inputs.hook_duration_seconds }}
+          NATURAL_LOOP: ${{ inputs.natural_loop }}
+          VISUAL_ENGINE: ${{ inputs.visual_attention_engine }}
+          SPLIT: ${{ inputs.smart_split_screen }}
+          REACTION: ${{ inputs.reaction_emphasis }}
+          AUTO_REVIEW: ${{ inputs.auto_review }}
+          COVER: ${{ inputs.create_cover }}
+          COVER_STYLE: ${{ inputs.cover_style }}
+          COVER_DURATION: ${{ inputs.cover_duration_seconds }}
+          PUBLISH: ${{ inputs.publish_to_buffer }}
+        run: |
+          set -euo pipefail
+          STARTED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "started_at=$STARTED_AT" >> "$GITHUB_OUTPUT"
+
+          gh workflow run process-video.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$GITHUB_REF_NAME" \
+            -f youtube_url="$VIDEO_URL" \
+            -f rights_confirmed="$RIGHTS" \
+            -f clips="$CLIPS" \
+            -f whisper_model="$WHISPER" \
+            -f subtitle_language="$SUBTITLE" \
+            -f content_profile="$PROFILE" \
+            -f show_context_hook="$SHOW_HOOK" \
+            -f hook_duration_seconds="$HOOK_DURATION" \
+            -f natural_loop="$NATURAL_LOOP" \
+            -f visual_attention_engine="$VISUAL_ENGINE" \
+            -f smart_split_screen="$SPLIT" \
+            -f reaction_emphasis="$REACTION" \
+            -f auto_review="$AUTO_REVIEW" \
+            -f create_cover="$COVER" \
+            -f cover_style="$COVER_STYLE" \
+            -f cover_duration_seconds="$COVER_DURATION" \
+            -f publish_to_buffer="$PUBLISH"
+
+          echo "Workflow do vídeo ${VIDEO_INDEX}/${VIDEO_COUNT} enviado."
+
+      - name: Localizar execução criada
+        id: child
+        shell: bash
+        env:
+          STARTED_AT: ${{ steps.dispatch.outputs.started_at }}
+        run: |
+          set -euo pipefail
+          RUN_ID=""
+          for attempt in $(seq 1 30); do
+            RUN_ID=$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow process-video.yml \
+              --branch "$GITHUB_REF_NAME" \
+              --event workflow_dispatch \
+              --limit 20 \
+              --json databaseId,createdAt \
+              --jq '[.[] | select(.createdAt >= "'"$STARTED_AT"'")] | sort_by(.createdAt) | last | .databaseId // empty')
+            if [ -n "$RUN_ID" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          if [ -z "$RUN_ID" ]; then
+            echo "Não foi possível localizar a execução filha."
+            exit 1
+          fi
+
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+          echo "Execução filha: $RUN_ID"
+
+      - name: Esperar este vídeo terminar
+        shell: bash
+        env:
+          RUN_ID: ${{ steps.child.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          echo "Aguardando o vídeo ${VIDEO_INDEX}/${VIDEO_COUNT} terminar antes de iniciar o próximo..."
+          gh run watch "$RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --interval 15 \
+            --exit-status
+
+      - name: Registrar conclusão
+        if: ${{ success() }}
+        run: |
+          echo "✅ Vídeo ${VIDEO_INDEX}/${VIDEO_COUNT} concluído." >> "$GITHUB_STEP_SUMMARY"
+          echo "Próximo vídeo da fila poderá iniciar agora." >> "$GITHUB_STEP_SUMMARY"
