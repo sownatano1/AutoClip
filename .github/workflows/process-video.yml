@@ -141,8 +141,6 @@ jobs:
       AUTO_PUBLISH: ${{ inputs.publish_to_buffer }}
       MIN_CLIP_SECONDS: "25"
       MAX_CLIP_SECONDS: "150"
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      GEMINI_MODEL: ${{ vars.GEMINI_MODEL || 'gemini-3.8-flash' }}
       CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
       CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
       CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
@@ -180,6 +178,11 @@ jobs:
           python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -r requirements.txt
           python -m pip install -U "yt-dlp[default]" bgutil-ytdlp-pot-provider
+
+      - name: Validar código Quality v9.11
+        run: |
+          python -m py_compile quality_v9_11.py runner.py
+          python -c "import quality_v9_11; print('Quality v9.11: import OK')"
 
       - name: Validar Cloudinary antes do processamento
         shell: bash
@@ -248,7 +251,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v9.10 + Entity Hashtag Intelligence + Source Intelligence + Auto Review
+      - name: Processar vídeo com Quality v9.11 + Local-First Editor + Auto Review
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
