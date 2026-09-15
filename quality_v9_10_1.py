@@ -16,7 +16,7 @@ def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
 
     for colon in [m.start() for m in re.finditer(":", title)]:
         prefix = title[:colon].strip()
-        suffix = title[colon + 1:].strip()
+        suffix = re.split(r"[|•]", title[colon + 1:], maxsplit=1)[0].strip()
 
         # Prefer an explicit metadata entity that occurs immediately before the colon.
         matching = []
@@ -31,8 +31,6 @@ def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
             words = re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", prefix)
             if not words:
                 continue
-            # Hyphenated names like Spider-Man are strong franchise signals. Otherwise use the
-            # final two title-cased tokens only when they do not look like editorial prose.
             if "-" in words[-1]:
                 left = words[-1]
             elif len(words) >= 2 and all(w[:1].isupper() for w in words[-2:]) and words[-2].casefold() not in {
@@ -56,7 +54,6 @@ def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
         if left and right_words:
             return f"{left}: {' '.join(right_words)}"
 
-    # An exact metadata title is safer than guessing from prose.
     for raw in metadata_tags:
         if ":" in raw and 2 <= len(q10.q99._words(raw)) <= 6:
             return raw
