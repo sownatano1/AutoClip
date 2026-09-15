@@ -30,7 +30,7 @@ WrapStyle: 2
 
 [V4+ Styles]
 Format: Name,Fontname,Fontsize,PrimaryColour,SecondaryColour,OutlineColour,BackColour,Bold,Italic,Underline,StrikeOut,ScaleX,ScaleY,Spacing,Angle,BorderStyle,Outline,Shadow,Alignment,MarginL,MarginR,MarginV,Encoding
-Style: Default,DejaVu Sans,65,&H00FFFFFF,&H000000FF,&H00000000,&H50000000,0,0,0,0,100,100,0,0,1,3.0,0,2,90,90,155,1
+Style: Default,DejaVu Sans,70,&H00FFFFFF,&H000000FF,&H00000000,&H50000000,0,0,0,0,100,100,0,0,1,3.0,0,2,90,90,155,1
 Style: Hook,DejaVu Sans,46,&H00FFFFFF,&H000000FF,&H00000000,&H72000000,1,0,0,0,100,100,0,0,3,0,0,8,90,90,115,1
 
 [Events]
@@ -72,10 +72,10 @@ def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_
     try:
         q6.write_ass_v6 = write_ass_v6_1
         duration = _hook_duration()
-        autoclip.log(f"Quality v6.1: legenda 65 · hook até {duration:g}s")
+        autoclip.log(f"Quality v6.1: legenda 70 · hook até {duration:g}s")
         q6.run(url, clips_count, min_seconds, max_seconds, whisper_model)
         autoclip.summary(
-            f"\n### Ajustes v6.1\nLegenda: **65** · duração configurada do hook: **{duration:g} segundos**.\n"
+            f"\n### Ajustes v6.1\nLegenda: **70** · duração configurada do hook: **{duration:g} segundos**.\n"
         )
     finally:
         q6.write_ass_v6 = original_writer
