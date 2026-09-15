@@ -79,6 +79,11 @@ on:
         required: true
         default: true
         type: boolean
+      auto_review:
+        description: "Revisar o clipe final e corrigir automaticamente problemas detectados?"
+        required: true
+        default: true
+        type: boolean
       create_cover:
         description: "Criar capa/thumbnail automática?"
         required: true
@@ -129,6 +134,7 @@ jobs:
       VISUAL_ATTENTION_ENGINE: ${{ inputs.visual_attention_engine }}
       SMART_SPLIT_SCREEN: ${{ inputs.smart_split_screen }}
       REACTION_EMPHASIS: ${{ inputs.reaction_emphasis }}
+      AUTO_REVIEW: ${{ inputs.auto_review }}
       CREATE_COVER: ${{ inputs.create_cover }}
       COVER_STYLE: ${{ inputs.cover_style }}
       COVER_DURATION_SECONDS: ${{ inputs.cover_duration_seconds }}
@@ -242,7 +248,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v9.2
+      - name: Processar vídeo com Quality v9.3 + Auto Review
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
