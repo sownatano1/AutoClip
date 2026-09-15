@@ -19,27 +19,25 @@ def _clean(value) -> str:
 
 
 def _candidate_names_v9_10_1(text: str) -> list[str]:
-    tokens = re.findall(r"\b[A-Z][A-Za-zÀ-ÿ'’.-]{1,25}\b", _clean(text))
+    clean = _clean(text)
     found: list[str] = []
 
-    # Two-word windows catch names even when a title continues with a capitalized verb:
-    # "Sadie Sink Opens..." -> "Sadie Sink", not "Sadie Sink Opens".
+    # Overlapping windows preserve real adjacency in the original text.
     for size in (2, 3):
-        for i in range(0, max(0, len(tokens) - size + 1)):
-            group = tokens[i:i + size]
+        pattern = r"(?=(\b" + r"\s+".join([r"[A-Z][A-Za-zÀ-ÿ'’.-]{1,25}"] * size) + r"\b))"
+        for match in re.finditer(pattern, clean):
+            value = match.group(1)
+            group = value.split()
             if any(word.casefold() in _EDITORIAL_TOKENS for word in group):
                 continue
-            value = " ".join(group)
             if value not in q10._NON_PERSON:
                 found.append(value)
 
-    # One-word stage names such as Zendaya are allowed, but q10 later validates them
-    # against a public-person source before using them.
-    for token in tokens:
-        if len(token) >= 5 and token.casefold() not in _EDITORIAL_TOKENS and token not in q10._NON_PERSON:
+    # Single-name public figures such as Zendaya. Remote validation is mandatory later.
+    for token in re.findall(r"\b[A-Z][A-Za-zÀ-ÿ'’.-]{4,25}\b", clean):
+        if token.casefold() not in _EDITORIAL_TOKENS and token not in q10._NON_PERSON:
             found.append(token)
 
-    # Add the stricter original extraction too; deduplication happens here before remote validation.
     try:
         found.extend(q10._ORIGINAL_CANDIDATE_NAMES(text))
     except Exception:
@@ -53,9 +51,68 @@ def _candidate_names_v9_10_1(text: str) -> list[str]:
             continue
         seen.add(key)
         out.append(value)
-        if len(out) >= 24:
+        if len(out) >= 18:
             break
     return out
+
+
+def _rank_people_v9_10_1(plan, caption: str, source: dict) -> list[dict]:
+    title = source.get("title", "")
+    desc = source.get("description", "")
+    tags = source.get("tags") or []
+    participants = q10._source_participants()
+    participant_norm = {q10._norm(x) for x in participants}
+    tag_norm = {q10._norm(x) for x in tags}
+
+    candidates: set[str] = set(participants)
+    # Single-word names are useful in title/caption/tags, but too noisy in continuous transcript prose.
+    for blob, allow_single in (
+        (caption, True), (title, True), (plan.text, False), (desc[:2200], False), (" | ".join(tags[:30]), True),
+    ):
+        for name in _candidate_names_v9_10_1(blob):
+            if allow_single or " " in name:
+                candidates.add(name)
+
+    scored: list[dict] = []
+    for name in candidates:
+        if len(name) < 5 or name in q10._NON_PERSON:
+            continue
+        score = 0
+        locations: list[str] = []
+        if q10._contains(caption, name):
+            score += 16; locations.append("caption")
+        if q10._contains(plan.text, name):
+            score += 13; locations.append("clip")
+        if q10._contains(title, name):
+            score += 10; locations.append("title")
+        if q10._norm(name) in participant_norm:
+            score += 10; locations.append("source-intelligence")
+        if q10._norm(name) in tag_norm:
+            score += 6; locations.append("metadata-tag")
+        if q10._contains(desc, name):
+            score += 2; locations.append("description")
+        if score >= 5:
+            scored.append({"name": name, "score": score, "locations": locations})
+
+    scored.sort(key=lambda x: (-x["score"], len(x["name"])))
+    validated: list[dict] = []
+    # Only the strongest candidates reach public validation; this keeps v9.10 fast.
+    for item in scored[:10]:
+        is_known_participant = q10._norm(item["name"]) in participant_norm
+        is_person, extract = q10._wiki_person(item["name"])
+        if not is_person and not is_known_participant:
+            continue
+        item["wiki"] = extract
+        if any(
+            q10._norm(item["name"]) in q10._norm(old["name"])
+            or q10._norm(old["name"]) in q10._norm(item["name"])
+            for old in validated
+        ):
+            continue
+        validated.append(item)
+        if len(validated) >= 5:
+            break
+    return validated
 
 
 def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
@@ -114,15 +171,17 @@ def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
 def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_model: str) -> None:
     original_work = q10._work_hint
     original_names = q10._candidate_names
-    # Keep a stable alias so the enhanced extractor can reuse the original implementation.
+    original_rank = q10._rank_people
     q10._ORIGINAL_CANDIDATE_NAMES = original_names
     try:
         q10._work_hint = _work_hint_v9_10_1
         q10._candidate_names = _candidate_names_v9_10_1
+        q10._rank_people = _rank_people_v9_10_1
         autoclip.log(
-            "Quality v9.10.1: Entity Hashtag Intelligence refinado · nomes de participantes + obra/franquia"
+            "Quality v9.10.1: Entity Hashtag Intelligence refinado · participantes ranqueados + personagem + obra/franquia"
         )
         q10.run(url, clips_count, min_seconds, max_seconds, whisper_model)
     finally:
         q10._work_hint = original_work
         q10._candidate_names = original_names
+        q10._rank_people = original_rank
