@@ -242,7 +242,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v9.1
+      - name: Processar vídeo com Quality v9.2
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
