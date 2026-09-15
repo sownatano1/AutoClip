@@ -6,8 +6,56 @@ import autoclip
 import quality_v9_10 as q10
 
 
+_EDITORIAL_TOKENS = {
+    "opens", "open", "reveals", "reveal", "talks", "talk", "explains", "explain", "tests", "test",
+    "tries", "try", "reacts", "react", "shares", "share", "breaks", "break", "discusses", "discuss",
+    "interview", "exclusive", "secret", "role", "cast", "trailer", "scene", "movie", "film", "about",
+    "with", "and", "versus", "vs", "on", "in", "at", "from", "the", "her", "his", "their",
+}
+
+
 def _clean(value) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def _candidate_names_v9_10_1(text: str) -> list[str]:
+    tokens = re.findall(r"\b[A-Z][A-Za-zÀ-ÿ'’.-]{1,25}\b", _clean(text))
+    found: list[str] = []
+
+    # Two-word windows catch names even when a title continues with a capitalized verb:
+    # "Sadie Sink Opens..." -> "Sadie Sink", not "Sadie Sink Opens".
+    for size in (2, 3):
+        for i in range(0, max(0, len(tokens) - size + 1)):
+            group = tokens[i:i + size]
+            if any(word.casefold() in _EDITORIAL_TOKENS for word in group):
+                continue
+            value = " ".join(group)
+            if value not in q10._NON_PERSON:
+                found.append(value)
+
+    # One-word stage names such as Zendaya are allowed, but q10 later validates them
+    # against a public-person source before using them.
+    for token in tokens:
+        if len(token) >= 5 and token.casefold() not in _EDITORIAL_TOKENS and token not in q10._NON_PERSON:
+            found.append(token)
+
+    # Add the stricter original extraction too; deduplication happens here before remote validation.
+    try:
+        found.extend(q10._ORIGINAL_CANDIDATE_NAMES(text))
+    except Exception:
+        pass
+
+    out: list[str] = []
+    seen: set[str] = set()
+    for value in found:
+        key = q10._norm(value)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(value)
+        if len(out) >= 24:
+            break
+    return out
 
 
 def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
@@ -18,7 +66,6 @@ def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
         prefix = title[:colon].strip()
         suffix = re.split(r"[|•]", title[colon + 1:], maxsplit=1)[0].strip()
 
-        # Prefer an explicit metadata entity that occurs immediately before the colon.
         matching = []
         for tag in metadata_tags:
             if ":" in tag:
@@ -33,19 +80,14 @@ def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
                 continue
             if "-" in words[-1]:
                 left = words[-1]
-            elif len(words) >= 2 and all(w[:1].isupper() for w in words[-2:]) and words[-2].casefold() not in {
-                "talks", "about", "secret", "exclusive", "reveals", "opens", "her", "his", "the",
-            }:
+            elif len(words) >= 2 and all(w[:1].isupper() for w in words[-2:]) and words[-2].casefold() not in _EDITORIAL_TOKENS:
                 left = " ".join(words[-2:])
             else:
                 left = words[-1]
 
         right_words = []
         for word in re.findall(r"[A-Za-z0-9][A-Za-z0-9'-]*", suffix):
-            if word.casefold() in {
-                "role", "interview", "exclusive", "trailer", "clip", "cast", "scene", "explained",
-                "breakdown", "reaction", "reacts", "talks", "opens", "reveals", "on", "with", "and",
-            }:
+            if word.casefold() in _EDITORIAL_TOKENS | {"explained", "breakdown"}:
                 break
             if word[:1].isupper() and len(right_words) < 5:
                 right_words.append(word)
@@ -70,10 +112,17 @@ def _work_hint_v9_10_1(source: dict, existing_tags: list[str]) -> str:
 
 
 def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_model: str) -> None:
-    original = q10._work_hint
+    original_work = q10._work_hint
+    original_names = q10._candidate_names
+    # Keep a stable alias so the enhanced extractor can reuse the original implementation.
+    q10._ORIGINAL_CANDIDATE_NAMES = original_names
     try:
         q10._work_hint = _work_hint_v9_10_1
-        autoclip.log("Quality v9.10.1: parser de obra/franquia refinado para Entity Hashtag Intelligence")
+        q10._candidate_names = _candidate_names_v9_10_1
+        autoclip.log(
+            "Quality v9.10.1: Entity Hashtag Intelligence refinado · nomes de participantes + obra/franquia"
+        )
         q10.run(url, clips_count, min_seconds, max_seconds, whisper_model)
     finally:
-        q10._work_hint = original
+        q10._work_hint = original_work
+        q10._candidate_names = original_names
