@@ -69,6 +69,21 @@ on:
         required: true
         default: true
         type: boolean
+      visual_attention_engine:
+        description: "Ativar Visual Attention Engine para evitar trechos visualmente parados?"
+        required: true
+        default: true
+        type: boolean
+      smart_split_screen:
+        description: "Usar split-screen curto quando falante e reação forem relevantes?"
+        required: true
+        default: true
+        type: boolean
+      reaction_emphasis:
+        description: "Dar close curto em reações fortes antes de voltar ao falante?"
+        required: true
+        default: true
+        type: boolean
       create_cover:
         description: "Criar capa/thumbnail automática?"
         required: true
@@ -117,6 +132,9 @@ jobs:
       HOOK_DURATION_SECONDS: ${{ inputs.hook_duration_seconds }}
       SMART_SUBTITLE_EMPHASIS: ${{ inputs.smart_subtitle_emphasis }}
       NATURAL_LOOP: ${{ inputs.natural_loop }}
+      VISUAL_ATTENTION_ENGINE: ${{ inputs.visual_attention_engine }}
+      SMART_SPLIT_SCREEN: ${{ inputs.smart_split_screen }}
+      REACTION_EMPHASIS: ${{ inputs.reaction_emphasis }}
       CREATE_COVER: ${{ inputs.create_cover }}
       COVER_STYLE: ${{ inputs.cover_style }}
       COVER_DURATION_SECONDS: ${{ inputs.cover_duration_seconds }}
@@ -230,7 +248,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v8
+      - name: Processar vídeo com Quality v9
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
