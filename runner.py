@@ -5,7 +5,11 @@ import shutil
 from pathlib import Path
 
 import autoclip
+import publish_backlog
 import quality_v9_11_1
+
+
+_REAL_BUFFER_CLIENT = autoclip.BufferClient
 
 
 def _youtube_common_options() -> dict:
@@ -127,6 +131,43 @@ class PreviewBufferClient:
         return "PREVIEW_ONLY"
 
 
+class BacklogAwareBufferClient:
+    """Publish immediately while there is room; persist overflow safely in GitHub."""
+
+    def __init__(self):
+        self._client = _REAL_BUFFER_CLIENT()
+
+    def channel_id(self) -> str:
+        return self._client.channel_id()
+
+    def _enqueue(self, video_url: str, text: str, reason: str) -> str:
+        item = publish_backlog.enqueue(video_url, text, source="AutoClip process-video")
+        print(
+            f"BACKLOG: corte {item['id']} salvo para publicação posterior ({reason}).",
+            flush=True,
+        )
+        return f"BACKLOG:{item['id']}"
+
+    def add_video_to_queue(self, video_url: str, text: str) -> str:
+        # Preserve FIFO: once there are older pending clips, new clips join the
+        # backlog instead of jumping ahead of them in Buffer.
+        try:
+            count = publish_backlog.pending_count()
+        except Exception as exc:
+            print(f"Aviso: não foi possível consultar o backlog antes do Buffer: {exc}", flush=True)
+            count = 0
+
+        if count > 0:
+            return self._enqueue(video_url, text, f"{count} item(ns) já aguardando")
+
+        try:
+            return self._client.add_video_to_queue(video_url, text)
+        except Exception as exc:
+            if publish_backlog.is_buffer_capacity_error(exc):
+                return self._enqueue(video_url, text, "limite de posts agendados do Buffer atingido")
+            raise
+
+
 def main() -> None:
     url = os.environ["YOUTUBE_URL"]
     if os.getenv("YOUTUBE_PREFLIGHT_ONLY", "").strip().lower() in {"1", "true", "yes"}:
@@ -140,6 +181,12 @@ def main() -> None:
     if not auto_publish:
         autoclip.BufferClient = PreviewBufferClient
         print("Modo PREVIEW ativo: os cortes não serão enviados ao Buffer/TikTok.", flush=True)
+    else:
+        autoclip.BufferClient = BacklogAwareBufferClient
+        print(
+            "Modo PUBLICAÇÃO ativo: Buffer será usado até o limite; excedentes irão para o backlog persistente.",
+            flush=True,
+        )
 
     clips = max(1, min(3, int(os.getenv("CLIPS_PER_SOURCE", "3"))))
     min_seconds = max(20, int(os.getenv("MIN_CLIP_SECONDS", "25")))
