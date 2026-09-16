@@ -9,6 +9,7 @@ import quality_v9_10 as q10
 _EDITORIAL_TOKENS = {
     "opens", "open", "reveals", "reveal", "talks", "talk", "explains", "explain", "tests", "test",
     "tries", "try", "reacts", "react", "shares", "share", "breaks", "break", "discusses", "discuss",
+    "works", "work", "working", "worked", "means", "mean", "makes", "make", "made", "says", "say",
     "interview", "exclusive", "secret", "role", "cast", "trailer", "scene", "movie", "film", "about",
     "with", "and", "versus", "vs", "on", "in", "at", "from", "the", "her", "his", "their",
 }
@@ -33,7 +34,8 @@ def _candidate_names_v9_10_1(text: str) -> list[str]:
             if value not in q10._NON_PERSON:
                 found.append(value)
 
-    # Single-name public figures such as Zendaya. Remote validation is mandatory later.
+    # Single-name public figures such as Zendaya. They still require contextual
+    # evidence later; capitalized caption words alone are not enough.
     for token in re.findall(r"\b[A-Z][A-Za-zÀ-ÿ'’.-]{4,25}\b", clean):
         if token.casefold() not in _EDITORIAL_TOKENS and token not in q10._NON_PERSON:
             found.append(token)
@@ -77,6 +79,19 @@ def _rank_people_v9_10_1(plan, caption: str, source: dict) -> list[dict]:
     for name in candidates:
         if len(name) < 5 or name in q10._NON_PERSON:
             continue
+
+        norm_name = q10._norm(name)
+        # A single capitalized word from a generated caption is not enough to
+        # establish a person. Require support from source metadata/intelligence.
+        if " " not in name:
+            supported_single = (
+                norm_name in participant_norm
+                or norm_name in tag_norm
+                or q10._contains(title, name)
+            )
+            if not supported_single:
+                continue
+
         score = 0
         locations: list[str] = []
         if q10._contains(caption, name):
@@ -85,9 +100,9 @@ def _rank_people_v9_10_1(plan, caption: str, source: dict) -> list[dict]:
             score += 13; locations.append("clip")
         if q10._contains(title, name):
             score += 10; locations.append("title")
-        if q10._norm(name) in participant_norm:
+        if norm_name in participant_norm:
             score += 10; locations.append("source-intelligence")
-        if q10._norm(name) in tag_norm:
+        if norm_name in tag_norm:
             score += 6; locations.append("metadata-tag")
         if q10._contains(desc, name):
             score += 2; locations.append("description")
