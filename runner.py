@@ -132,7 +132,11 @@ class PreviewBufferClient:
 
 
 class BacklogAwareBufferClient:
-    """Publish immediately while there is room; persist overflow safely in GitHub."""
+    """Publish immediately while there is room; persist overflow safely in GitHub.
+
+    This wrapper also exposes BufferClient.call() because Quality v7 temporarily
+    replaces add_video_to_queue() to control the video thumbnail/cover offset.
+    """
 
     def __init__(self):
         self._client = _REAL_BUFFER_CLIENT()
@@ -147,6 +151,70 @@ class BacklogAwareBufferClient:
             flush=True,
         )
         return f"BACKLOG:{item['id']}"
+
+    @staticmethod
+    def _create_post_payload(variables: dict | None) -> tuple[str, str]:
+        payload = (variables or {}).get("input") or {}
+        text = str(payload.get("text") or "")
+        video_url = ""
+        assets = payload.get("assets") or []
+        if isinstance(assets, list) and assets:
+            first = assets[0] if isinstance(assets[0], dict) else {}
+            video = first.get("video") if isinstance(first, dict) else {}
+            if isinstance(video, dict):
+                video_url = str(video.get("url") or "").strip()
+        return video_url, text
+
+    def _backlog_graphql_success(self, video_url: str, text: str, reason: str) -> dict:
+        backlog_id = self._enqueue(video_url, text, reason)
+        # Quality v7 expects the same shape returned by autoclip.BufferClient.call().
+        return {"createPost": {"post": {"id": backlog_id, "dueAt": None}}}
+
+    def call(self, query: str, variables: dict | None = None) -> dict:
+        """Delegate GraphQL calls while intercepting createPost overflow.
+
+        Quality v7 calls this method directly when covers are enabled, so backlog
+        handling must live here as well as in add_video_to_queue().
+        """
+        is_create_post = "createPost" in str(query)
+        video_url, text = self._create_post_payload(variables) if is_create_post else ("", "")
+
+        if is_create_post and video_url:
+            try:
+                count = publish_backlog.pending_count()
+            except Exception as exc:
+                print(f"Aviso: não foi possível consultar o backlog antes do Buffer: {exc}", flush=True)
+                count = 0
+
+            if count > 0:
+                return self._backlog_graphql_success(
+                    video_url,
+                    text,
+                    f"{count} item(ns) já aguardando",
+                )
+
+        try:
+            data = self._client.call(query, variables)
+        except Exception as exc:
+            if is_create_post and video_url and publish_backlog.is_buffer_capacity_error(exc):
+                return self._backlog_graphql_success(
+                    video_url,
+                    text,
+                    "limite de posts agendados do Buffer atingido",
+                )
+            raise
+
+        if is_create_post and video_url:
+            create_post = data.get("createPost") if isinstance(data, dict) else None
+            message = str((create_post or {}).get("message") or "") if isinstance(create_post, dict) else ""
+            if message and publish_backlog.is_buffer_capacity_error(RuntimeError(message)):
+                return self._backlog_graphql_success(
+                    video_url,
+                    text,
+                    "limite de posts agendados do Buffer atingido",
+                )
+
+        return data
 
     def add_video_to_queue(self, video_url: str, text: str) -> str:
         # Preserve FIFO: once there are older pending clips, new clips join the
