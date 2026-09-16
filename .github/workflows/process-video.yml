@@ -105,7 +105,7 @@ on:
         default: "0.8"
         type: string
       publish_to_buffer:
-        description: "Enviar os cortes ao Buffer/TikTok? (deixe desmarcado enquanto estivermos testando)"
+        description: "Enviar os cortes ao Buffer/TikTok? (excedentes vão para o backlog automático)"
         required: true
         default: false
         type: boolean
@@ -119,7 +119,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
-      contents: read
+      contents: write
 
     env:
       YOUTUBE_URL: ${{ inputs.youtube_url }}
@@ -150,6 +150,8 @@ jobs:
       YOUTUBE_COOKIES_B64: ${{ secrets.YOUTUBE_COOKIES_B64 }}
       YOUTUBE_COOKIES_FILE: ${{ github.workspace }}/youtube-cookies.txt
       YOUTUBE_POT_PROVIDER_URL: http://127.0.0.1:4416
+      GITHUB_TOKEN: ${{ github.token }}
+      AUTOCLIP_BACKLOG_BRANCH: ${{ github.event.repository.default_branch }}
 
     steps:
       - name: Baixar projeto
@@ -179,10 +181,10 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -U "yt-dlp[default]" bgutil-ytdlp-pot-provider
 
-      - name: Validar código Quality v9.11.1
+      - name: Validar código Quality v9.11.1 + backlog
         run: |
-          python -m py_compile quality_v9_11.py quality_v9_11_1.py runner.py
-          python -c "import quality_v9_11_1; print('Quality v9.11.1: import OK')"
+          python -m py_compile quality_v9_11.py quality_v9_11_1.py publish_backlog.py runner.py
+          python -c "import quality_v9_11_1, publish_backlog; print('Quality v9.11.1 + backlog: import OK')"
 
       - name: Validar Cloudinary antes do processamento
         shell: bash
