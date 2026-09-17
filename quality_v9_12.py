@@ -64,7 +64,7 @@ def enhance_final_clip(path: Path, clip_number: int) -> bool:
         "ffmpeg", "-y", "-i", str(path),
         "-map", "0:v:0", "-map", "0:a?",
         "-vf", _filter_chain(),
-        "-c:v", "libx264", "-preset", "medium", "-crf", "18",
+        "-c:v", "libx264", "-preset", "fast", "-crf", "18",
         "-c:a", "copy",
         "-pix_fmt", "yuv420p",
         "-movflags", "+faststart",
