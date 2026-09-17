@@ -135,6 +135,7 @@ jobs:
       SMART_SPLIT_SCREEN: ${{ inputs.smart_split_screen }}
       REACTION_EMPHASIS: ${{ inputs.reaction_emphasis }}
       AUTO_REVIEW: ${{ inputs.auto_review }}
+      FINAL_VISUAL_ENHANCE: "true"
       CREATE_COVER: ${{ inputs.create_cover }}
       COVER_STYLE: ${{ inputs.cover_style }}
       COVER_DURATION_SECONDS: ${{ inputs.cover_duration_seconds }}
@@ -181,10 +182,10 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -U "yt-dlp[default]" bgutil-ytdlp-pot-provider
 
-      - name: Validar código Quality v9.11.1 + backlog
+      - name: Validar código Quality v9.12 + Final Visual Enhance + backlog
         run: |
-          python -m py_compile quality_v9_11.py quality_v9_11_1.py publish_backlog.py runner.py
-          python -c "import quality_v9_11_1, publish_backlog; print('Quality v9.11.1 + backlog: import OK')"
+          python -m py_compile quality_v9_11.py quality_v9_11_1.py quality_v9_12.py publish_backlog.py runner.py
+          python -c "import quality_v9_12, publish_backlog; print('Quality v9.12 + Final Visual Enhance + backlog: import OK')"
 
       - name: Validar Cloudinary antes do processamento
         shell: bash
@@ -253,7 +254,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v9.11.1 + Local-First Editor + Auto Review
+      - name: Processar vídeo com Quality v9.12 + Final Visual Enhance + Local-First Editor
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
