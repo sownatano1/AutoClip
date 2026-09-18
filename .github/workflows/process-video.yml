@@ -136,6 +136,11 @@ jobs:
       REACTION_EMPHASIS: ${{ inputs.reaction_emphasis }}
       AUTO_REVIEW: ${{ inputs.auto_review }}
       FINAL_VISUAL_ENHANCE: "true"
+      HYBRID_AI_ENABLED: "true"
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GROQ_VISION_MODEL: "qwen/qwen3.6-27b"
+      TWELVELABS_API_KEY: ${{ secrets.TWELVELABS_API_KEY }}
+      TWELVELABS_READY_TIMEOUT: "40"
       CREATE_COVER: ${{ inputs.create_cover }}
       COVER_STYLE: ${{ inputs.cover_style }}
       COVER_DURATION_SECONDS: ${{ inputs.cover_duration_seconds }}
@@ -182,10 +187,10 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -U "yt-dlp[default]" bgutil-ytdlp-pot-provider
 
-      - name: Validar código Quality v9.12 + Final Visual Enhance + backlog
+      - name: Validar código Quality v9.13 + Hybrid Intelligence + Final Visual Enhance + backlog
         run: |
-          python -m py_compile quality_v9_11.py quality_v9_11_1.py quality_v9_12.py publish_backlog.py runner.py
-          python -c "import quality_v9_12, publish_backlog; print('Quality v9.12 + Final Visual Enhance + backlog: import OK')"
+          python -m py_compile quality_v9_11.py quality_v9_11_1.py quality_v9_12.py quality_v9_13.py publish_backlog.py runner.py
+          python -c "import quality_v9_13, publish_backlog; print('Quality v9.13 + Hybrid Intelligence + Final Visual Enhance + backlog: import OK')"
 
       - name: Validar Cloudinary antes do processamento
         shell: bash
@@ -254,7 +259,7 @@ jobs:
       - name: Validar configuração
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v9.12 + Final Visual Enhance + Local-First Editor
+      - name: Processar vídeo com Quality v9.13 + Hybrid Intelligence opcional + Local-First Editor
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
