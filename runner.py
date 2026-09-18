@@ -8,6 +8,7 @@ import autoclip
 import publish_backlog
 import quality_v9_11_1
 import quality_v9_12
+import quality_v9_13
 
 
 _REAL_BUFFER_CLIENT = autoclip.BufferClient
@@ -261,7 +262,7 @@ def main() -> None:
     min_seconds = max(20, int(os.getenv("MIN_CLIP_SECONDS", "25")))
     max_seconds = max(min_seconds, int(os.getenv("MAX_CLIP_SECONDS", "150")))
     whisper_model = os.getenv("WHISPER_MODEL", "base")
-    quality_v9_12.run(url, clips, min_seconds, max_seconds, whisper_model)
+    quality_v9_13.run(url, clips, min_seconds, max_seconds, whisper_model)
 
 
 if __name__ == "__main__":
