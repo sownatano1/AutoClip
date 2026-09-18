@@ -106,6 +106,16 @@ def _twelvelabs_analyze() -> dict:
         )
         return {}
 
+    try:
+        duration = float(q98._source_metadata().get("duration") or 0)
+    except Exception:
+        duration = 0.0
+    if duration > 3500:
+        autoclip.log(
+            f"Hybrid Intelligence: TwelveLabs sync pulado para fonte longa ({duration / 60:.0f} min); seguindo localmente."
+        )
+        return {}
+
     asset_id = ""
     try:
         autoclip.log("Hybrid Intelligence: TwelveLabs analisando o vídeo como camada opcional")
