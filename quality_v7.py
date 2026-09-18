@@ -212,7 +212,7 @@ def _make_cover(frame: np.ndarray, center_x: float, title: str, target: Path) ->
         image = ImageEnhance.Sharpness(image).enhance(1.20)
         image = _vignette(image, 0.34)
 
-    # Dark top gradient keeps the title readable without covering the whole image.
+    # Dark upper gradient keeps the title readable without covering the whole image.
     overlay = Image.new("RGBA", image.size, (0, 0, 0, 0))
     od = ImageDraw.Draw(overlay)
     for y in range(0, 760, 8):
@@ -233,7 +233,7 @@ def _make_cover(frame: np.ndarray, center_x: float, title: str, target: Path) ->
         widths.append(box[2] - box[0])
         heights.append(box[3] - box[1])
     total_h = sum(heights) + max(0, len(lines) - 1) * line_gap
-    y = 110
+    y = 285
 
     if style == "clean":
         max_w = max(widths, default=0)
