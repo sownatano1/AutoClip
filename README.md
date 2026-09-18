@@ -57,6 +57,29 @@ A v9.8 adicionou uma etapa editorial **antes da escolha dos cortes**.
 
 A regra principal da v9.8 é: **primeiro entender o vídeo; depois escolher o corte**.
 
+
+
+## Quality v9.13 — Hybrid Intelligence opcional
+
+A v9.13 mantém o **Local-First Editor** como base obrigatória e usa serviços externos somente quando eles estão disponíveis.
+
+- **TwelveLabs (opcional):** pode analisar o vídeo inteiro já baixado e fornecer dicas visuais/temporais, mudanças de assunto e momentos fortes.
+- **Groq Vision (opcional):** recebe apenas alguns candidatos já considerados seguros pelo editor local, junto com transcript e frames, e ajuda a reranquear quais têm melhor retenção/contexto/interesse visual.
+- **Sem dependência externa:** ausência de chave, timeout, quota, HTTP 401/429/5xx ou resposta inválida fazem a camada ser ignorada automaticamente.
+- **Speech Guard local continua soberano:** APIs externas não escolhem livremente início/fim e não podem obrigar o AutoClip a cortar no meio de uma fala.
+- **Economia de chamadas:** Groq recebe no máximo alguns candidatos/frames; TwelveLabs faz no máximo uma análise opcional por fonte compatível.
+- **Vídeos grandes/longos:** se a fonte não for adequada ao upload/análise síncrona do TwelveLabs, o AutoClip simplesmente pula essa camada.
+
+### Secrets opcionais para Hybrid Intelligence
+
+Em **Settings → Secrets and variables → Actions → Repository secrets**, adicione somente se quiser ativar essas camadas:
+
+- `GROQ_API_KEY`
+- `TWELVELABS_API_KEY`
+
+Não coloque as chaves no código e não as envie em logs/chat. Se esses Secrets não existirem, o AutoClip continua normalmente com Whisper + regras locais.
+
+
 ## Quality v9.7 — Social Caption original
 
 A v9.7 introduziu a publicação contextual usando título, descrição, canal/uploader, tags, hook final e transcrição. A v9.9 substituiu o fallback antigo que podia transformar palavras frequentes da transcrição em hashtags sem sentido.
@@ -121,14 +144,14 @@ A v9.7 introduziu a publicação contextual usando título, descrição, canal/u
 1. Abra **Actions → AutoClip - Processar vídeo → Run workflow**.
 2. Cole o link do YouTube.
 3. Confirme que possui direito/permissão para reutilizar o conteúdo.
-4. Para avaliar a v9.10, use `1` corte e Whisper `base`.
+4. Para avaliar a v9.13, use `1` corte e Whisper `base`.
 5. Escolha o perfil adequado ou deixe `Auto`.
 6. Mantenha hook, Visual Attention, Split-screen, Reaction Emphasis e Auto Review conforme desejado.
 7. Mantenha a capa ativada.
 8. Deixe **Enviar ao Buffer/TikTok** desmarcado no primeiro teste.
 9. Execute o workflow.
 
-No log procure por `Entity Hashtag Intelligence corte 1:` e depois por `PREVIEW: legenda Buffer/TikTok:`. O Job Summary mostra pessoa focal, personagem confirmado, participantes secundários, obra/franquia e hashtags finais.
+No log procure por `Quality v9.13: Hybrid Intelligence opcional`, `Hybrid Intelligence: Groq` / `Hybrid Intelligence: TwelveLabs` (quando configurados), `Entity Hashtag Intelligence corte 1:` e depois por `PREVIEW: legenda Buffer/TikTok:`. O Job Summary mostra pessoa focal, personagem confirmado, participantes secundários, obra/franquia e hashtags finais.
 
 ## Secrets obrigatórios
 
@@ -140,7 +163,7 @@ Em **Settings → Secrets and variables → Actions → Repository secrets**:
 - `BUFFER_API_KEY`
 - `YOUTUBE_COOKIES_B64`
 
-Opcionais: `BUFFER_CHANNEL_ID` e `GEMINI_API_KEY`.
+Opcionais: `BUFFER_CHANNEL_ID`, `GROQ_API_KEY` e `TWELVELABS_API_KEY`. O Gemini não é necessário para a v9.13.
 
 Repository variables opcionais: `GEMINI_MODEL` e `CLOUDINARY_FOLDER`.
 
