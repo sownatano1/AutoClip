@@ -217,48 +217,66 @@ jobs:
         run: |
           set -euo pipefail
           STARTED_AT=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          TOKEN="queue-${GITHUB_RUN_ID}-${VIDEO_INDEX}"
           echo "started_at=$STARTED_AT" >> "$GITHUB_OUTPUT"
+          echo "queue_token=$TOKEN" >> "$GITHUB_OUTPUT"
 
-          gh workflow run process-video.yml \
-            --repo "$GITHUB_REPOSITORY" \
-            --ref "$GITHUB_REF_NAME" \
-            -f youtube_url="$VIDEO_URL" \
-            -f rights_confirmed="$RIGHTS" \
-            -f clips="$CLIPS" \
-            -f whisper_model="$WHISPER" \
-            -f subtitle_language="$SUBTITLE" \
-            -f content_profile="$PROFILE" \
-            -f show_context_hook="$SHOW_HOOK" \
-            -f hook_duration_seconds="$HOOK_DURATION" \
-            -f natural_loop="$NATURAL_LOOP" \
-            -f visual_attention_engine="$VISUAL_ENGINE" \
-            -f smart_split_screen="$SPLIT" \
-            -f reaction_emphasis="$REACTION" \
-            -f auto_review="$AUTO_REVIEW" \
-            -f create_cover="$COVER" \
-            -f cover_style="$COVER_STYLE" \
-            -f cover_duration_seconds="$COVER_DURATION" \
-            -f publish_to_buffer="$PUBLISH"
+          DISPATCHED=0
+          for attempt in 1 2 3; do
+            echo "Tentativa de envio $attempt/3 para o vídeo ${VIDEO_INDEX}/${VIDEO_COUNT}..."
+            if gh workflow run process-video.yml \
+              --repo "$GITHUB_REPOSITORY" \
+              --ref "$GITHUB_REF_NAME" \
+              -f queue_token="$TOKEN" \
+              -f youtube_url="$VIDEO_URL" \
+              -f rights_confirmed="$RIGHTS" \
+              -f clips="$CLIPS" \
+              -f whisper_model="$WHISPER" \
+              -f subtitle_language="$SUBTITLE" \
+              -f content_profile="$PROFILE" \
+              -f show_context_hook="$SHOW_HOOK" \
+              -f hook_duration_seconds="$HOOK_DURATION" \
+              -f natural_loop="$NATURAL_LOOP" \
+              -f visual_attention_engine="$VISUAL_ENGINE" \
+              -f smart_split_screen="$SPLIT" \
+              -f reaction_emphasis="$REACTION" \
+              -f auto_review="$AUTO_REVIEW" \
+              -f create_cover="$COVER" \
+              -f cover_style="$COVER_STYLE" \
+              -f cover_duration_seconds="$COVER_DURATION" \
+              -f publish_to_buffer="$PUBLISH"; then
+              DISPATCHED=1
+              break
+            fi
+            sleep $((attempt * 4))
+          done
 
-          echo "Workflow do vídeo ${VIDEO_INDEX}/${VIDEO_COUNT} enviado."
+          if [ "$DISPATCHED" -ne 1 ]; then
+            echo "Falha ao disparar o workflow após 3 tentativas."
+            exit 1
+          fi
+
+          echo "Workflow do vídeo ${VIDEO_INDEX}/${VIDEO_COUNT} enviado com token $TOKEN."
 
       - name: Localizar execução criada
         id: child
         shell: bash
         env:
-          STARTED_AT: ${{ steps.dispatch.outputs.started_at }}
+          QUEUE_TOKEN: ${{ steps.dispatch.outputs.queue_token }}
         run: |
           set -euo pipefail
           RUN_ID=""
-          for attempt in $(seq 1 30); do
+          EXPECTED_TITLE="AutoClip - $QUEUE_TOKEN"
+
+          for attempt in $(seq 1 60); do
             RUN_ID=$(gh run list \
               --repo "$GITHUB_REPOSITORY" \
               --workflow process-video.yml \
               --branch "$GITHUB_REF_NAME" \
               --event workflow_dispatch \
-              --limit 20 \
-              --json databaseId,createdAt \
-              --jq '[.[] | select(.createdAt >= "'"$STARTED_AT"'")] | sort_by(.createdAt) | last | .databaseId // empty')
+              --limit 30 \
+              --json databaseId,displayTitle,createdAt \
+              --jq '[.[] | select(.displayTitle == "'"$EXPECTED_TITLE"'")] | sort_by(.createdAt) | last | .databaseId // empty')
             if [ -n "$RUN_ID" ]; then
               break
             fi
@@ -266,12 +284,12 @@ jobs:
           done
 
           if [ -z "$RUN_ID" ]; then
-            echo "Não foi possível localizar a execução filha."
+            echo "Não foi possível localizar a execução filha com token $QUEUE_TOKEN."
             exit 1
           fi
 
           echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
-          echo "Execução filha: $RUN_ID"
+          echo "Execução filha: $RUN_ID · token: $QUEUE_TOKEN"
 
       - name: Esperar este vídeo terminar
         shell: bash
