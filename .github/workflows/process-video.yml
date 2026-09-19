@@ -148,6 +148,7 @@ jobs:
       GROQ_VISION_MODEL: "qwen/qwen3.8-27b"
       TWELVELABS_API_KEY: ${{ secrets.TWELVELABS_API_KEY }}
       TWELVELABS_READY_TIMEOUT: "40"
+      TWELVELABS_ANALYZE_TIMEOUT: "75"
       CREATE_COVER: ${{ inputs.create_cover }}
       COVER_STYLE: ${{ inputs.cover_style }}
       COVER_DURATION_SECONDS: ${{ inputs.cover_duration_seconds }}
