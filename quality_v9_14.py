@@ -112,6 +112,7 @@ SOURCE TITLE: {_clean(source.get('title'), 420)}
 SOURCE DESCRIPTION: {_clean(source.get('description'), 900)}
 KNOWN PARTICIPANTS FROM TEXT/METADATA: {_participant_hint() or 'none confirmed'}
 SOURCE PREMISE: {_clean(intel.get('premise'), 700)}
+OPTIONAL VIDEO-VISION CONTEXT: {_clean(intel.get('twelvelabs_visual_context'), 500) or 'none'}
 EDITORIAL REVIEW HINT: {_hybrid_reason(plan) or 'none'}
 
 EXACT CLIP TRANSCRIPT:
