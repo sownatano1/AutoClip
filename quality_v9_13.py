@@ -228,7 +228,7 @@ def _twelvelabs_analyze() -> dict:
                 "temperature": 0.1,
                 "max_tokens": 1200,
             },
-            timeout=(10, 40),
+            timeout=(10, max(30, min(90, int(os.getenv("TWELVELABS_ANALYZE_TIMEOUT", "75"))))),
         )
         if analysis.status_code >= 400:
             raise RuntimeError(f"analyze HTTP {analysis.status_code}: {analysis.text[:240]}")
