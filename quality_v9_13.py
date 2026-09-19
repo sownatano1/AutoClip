@@ -24,6 +24,7 @@ SOURCE_VIDEO: Path | None = None
 TWELVELABS_RESULT: dict = {}
 GROQ_RESULT: dict = {}
 HYBRID_REPORT: list[dict] = []
+_GROQ_MODELS_CACHE: set[str] | None = None
 
 
 def _enabled() -> bool:
@@ -73,6 +74,56 @@ def _twelvelabs_key() -> str:
 
 def _groq_key() -> str:
     return os.getenv("GROQ_API_KEY", "").strip()
+
+
+def _groq_models() -> set[str]:
+    global _GROQ_MODELS_CACHE
+    if _GROQ_MODELS_CACHE is not None:
+        return _GROQ_MODELS_CACHE
+    key = _groq_key()
+    if not key:
+        _GROQ_MODELS_CACHE = set()
+        return _GROQ_MODELS_CACHE
+    try:
+        response = requests.get(
+            "https://api.groq.com/openai/v1/models",
+            headers={"Authorization": f"Bearer {key}"},
+            timeout=8,
+        )
+        response.raise_for_status()
+        data = response.json()
+        _GROQ_MODELS_CACHE = {
+            str(item.get("id") or "").strip()
+            for item in (data.get("data") or [])
+            if isinstance(item, dict) and str(item.get("id") or "").strip()
+        }
+    except Exception as exc:
+        autoclip.log(f"Hybrid Intelligence: não foi possível listar modelos Groq · {exc}")
+        _GROQ_MODELS_CACHE = set()
+    return _GROQ_MODELS_CACHE
+
+
+def choose_groq_model(prefer_vision: bool = True) -> tuple[str, bool]:
+    """Choose a model actually exposed to this API key.
+
+    Returns (model_id, supports_images). Empty model means use local fallback.
+    """
+    available = _groq_models()
+    configured = os.getenv("GROQ_VISION_MODEL", "").strip()
+    vision_candidates = [
+        configured,
+        "qwen/qwen3.8-27b",
+        "qwen/qwen3.6-27b",
+    ]
+    for model in vision_candidates:
+        if model and model in available:
+            return model, True
+
+    for model in ("openai/gpt-oss-20b", "openai/gpt-oss-120b"):
+        if model in available:
+            return model, False
+
+    return "", False
 
 
 def _delete_twelvelabs_asset(asset_id: str) -> None:
@@ -287,13 +338,24 @@ def _groq_review(candidates: list[q2.ClipPlan]) -> dict:
         if image:
             content.append({"type": "image_url", "image_url": {"url": image}})
 
+    model, supports_images = choose_groq_model(prefer_vision=True)
+    if not model:
+        autoclip.log("Hybrid Intelligence: Groq sem modelo compatível disponível; seguindo localmente")
+        return {}
+
+    if not supports_images:
+        content = [item for item in content if item.get("type") != "image_url"]
+
     try:
-        autoclip.log(f"Hybrid Intelligence: Groq revisando {len(usable)} candidato(s) com texto + frames")
+        mode = "texto + frames" if supports_images else "texto"
+        autoclip.log(
+            f"Hybrid Intelligence: Groq revisando {len(usable)} candidato(s) com {mode} · modelo={model}"
+        )
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
             json={
-                "model": os.getenv("GROQ_VISION_MODEL", "qwen/qwen3.6-27b"),
+                "model": model,
                 "messages": [{"role": "user", "content": content}],
                 "temperature": 0.1,
                 "max_completion_tokens": 900,
@@ -424,13 +486,14 @@ def _hybrid_selector(
 
 
 def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_model: str) -> None:
-    global _ORIGINAL_DOWNLOAD, SOURCE_VIDEO
+    global _ORIGINAL_DOWNLOAD, SOURCE_VIDEO, _GROQ_MODELS_CACHE
 
     original_download = q6._ORIGINAL_DOWNLOAD
     original_intelligence = q11._source_intelligence_local
     original_selector = q11.select_local_editorial
 
     SOURCE_VIDEO = None
+    _GROQ_MODELS_CACHE = None
     TWELVELABS_RESULT.clear()
     GROQ_RESULT.clear()
     HYBRID_REPORT.clear()
