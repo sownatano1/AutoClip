@@ -3,6 +3,11 @@ name: AutoClip - Processar vídeo
 on:
   workflow_dispatch:
     inputs:
+      queue_token:
+        description: "Identificador interno da fila (deixe vazio ao executar manualmente)"
+        required: false
+        default: ""
+        type: string
       youtube_url:
         description: "Link do YouTube"
         required: true
@@ -109,6 +114,8 @@ on:
         required: true
         default: false
         type: boolean
+
+run-name: ${{ inputs.queue_token != '' && format('AutoClip - {0}', inputs.queue_token) || 'AutoClip - Processar vídeo' }}
 
 concurrency:
   group: autoclips-processing
