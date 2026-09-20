@@ -382,11 +382,13 @@ def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_
         q61.run(url, clips_count, min_seconds, max_seconds, whisper_model)
         if _enabled() and COVERS:
             autoclip.summary("\n### Capas v7\n")
+            public_safe = autoclip.env("PUBLIC_REPO_SAFE_LOGS", "false").lower() in {"1", "true", "yes", "on"}
             for idx in sorted(COVERS):
                 info = COVERS[idx]
+                cover_ref = "URL ocultada" if public_safe and info.get("url") else (info.get("url") or "capa local")
                 autoclip.summary(
                     f"- **Corte {idx}** — estilo **{info['style']}** — título: **{info['title']}** "
-                    f"— frame {autoclip.fmt_time(float(info['frame_time']))} — {info.get('url') or 'capa local'}"
+                    f"— frame {autoclip.fmt_time(float(info['frame_time']))} — {cover_ref}"
                 )
             autoclip.summary(
                 f"\nA capa fica por **{_cover_duration():g}s** no início do MP4 e o Buffer aponta para o começo do vídeo como thumbnail.\n"
