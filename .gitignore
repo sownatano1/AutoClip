@@ -8,3 +8,12 @@ output/
 *.wav
 *.srt
 .DS_Store
+.env.*
+!.env.example
+.secrets/
+youtube-cookies.txt
+*cookies*.txt
+*.b64
+credentials*.json
+service-account*.json
+data/publish_backlog.json
