@@ -18,9 +18,6 @@ jobs:
       contents: write
 
     env:
-      BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
-      BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
-      GITHUB_TOKEN: ${{ github.token }}
       AUTOCLIP_BACKLOG_BRANCH: ${{ github.event.repository.default_branch }}
 
     steps:
@@ -39,4 +36,9 @@ jobs:
         run: python -m py_compile publish_backlog.py autoclip.py
 
       - name: Preencher vagas do Buffer com o backlog
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+          BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
+          GITHUB_TOKEN: ${{ github.token }}
+          AUTOCLIP_BACKLOG_ENCRYPTION_KEY: ${{ secrets.AUTOCLIP_BACKLOG_ENCRYPTION_KEY }}
         run: python publish_backlog.py --drain
