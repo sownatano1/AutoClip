@@ -403,10 +403,12 @@ def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_
 
     autoclip.progress("Concluído", 100, f"{len(results)} corte(s) processados")
     autoclip.summary("## Resultado Quality v4\n")
+    public_safe = autoclip.env("PUBLIC_REPO_SAFE_LOGS", "false").lower() in {"1", "true", "yes", "on"}
     for r in results:
+        asset = "Cloudinary: URL ocultada" if public_safe else r["cloudinary_url"]
         autoclip.summary(
             f"- **Corte {r['clip']}** — {autoclip.fmt_time(r['start'])}–{autoclip.fmt_time(r['end'])} "
-            f"— score {r['score']} — edição: {r['framing']} — Buffer `{r['buffer_post_id']}` — {r['cloudinary_url']}"
+            f"— score {r['score']} — edição: {r['framing']} — Buffer `{r['buffer_post_id']}` — {asset}"
         )
         if r["reason"]:
             autoclip.summary(f"  - Contexto editorial: {r['reason']}")
