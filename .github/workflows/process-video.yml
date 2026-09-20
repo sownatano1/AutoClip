@@ -1,6 +1,63 @@
 name: AutoClip - Processar vídeo
 
 on:
+  workflow_call:
+    inputs:
+      queue_token:
+        required: false
+        default: ""
+        type: string
+      youtube_url:
+        required: true
+        type: string
+      rights_confirmed:
+        required: true
+        type: boolean
+      clips:
+        required: true
+        type: string
+      whisper_model:
+        required: true
+        type: string
+      subtitle_language:
+        required: true
+        type: string
+      content_profile:
+        required: true
+        type: string
+      show_context_hook:
+        required: true
+        type: boolean
+      hook_duration_seconds:
+        required: true
+        type: string
+      natural_loop:
+        required: true
+        type: boolean
+      visual_attention_engine:
+        required: true
+        type: boolean
+      smart_split_screen:
+        required: true
+        type: boolean
+      reaction_emphasis:
+        required: true
+        type: boolean
+      auto_review:
+        required: true
+        type: boolean
+      create_cover:
+        required: true
+        type: boolean
+      cover_style:
+        required: true
+        type: string
+      cover_duration_seconds:
+        required: true
+        type: string
+      publish_to_buffer:
+        required: true
+        type: boolean
   workflow_dispatch:
     inputs:
       queue_token:
