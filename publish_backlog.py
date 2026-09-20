@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import hashlib
 import os
 import sys
 import time
@@ -12,14 +13,33 @@ from typing import Any
 from urllib.parse import quote
 
 import requests
+from cryptography.fernet import Fernet, InvalidToken
 
 
-BACKLOG_PATH = os.getenv("AUTOCLIP_BACKLOG_PATH", "data/publish_backlog.json").strip() or "data/publish_backlog.json"
+BACKLOG_PATH = os.getenv("AUTOCLIP_BACKLOG_PATH", "data/publish_backlog.enc").strip() or "data/publish_backlog.enc"
 API_ROOT = "https://api.github.com"
 
 
 class BacklogConflict(RuntimeError):
     pass
+
+def _fernet() -> Fernet:
+    # Prefer a dedicated encryption secret when configured; otherwise derive a
+    # high-entropy key from the Buffer API key that is already required to publish.
+    # The repository stores only ciphertext, so making it public does not expose
+    # pending Cloudinary URLs/captions.
+    material = (
+        os.getenv("AUTOCLIP_BACKLOG_ENCRYPTION_KEY", "").strip()
+        or os.getenv("BUFFER_API_KEY", "").strip()
+    )
+    if not material:
+        raise RuntimeError(
+            "Secret para criptografar o backlog ausente. Configure "
+            "AUTOCLIP_BACKLOG_ENCRYPTION_KEY ou BUFFER_API_KEY."
+        )
+    digest = hashlib.sha256(("AutoClip::publish-backlog::v1::" + material).encode("utf-8")).digest()
+    return Fernet(base64.urlsafe_b64encode(digest))
+
 
 
 def _now_iso() -> str:
@@ -70,7 +90,14 @@ def _load() -> tuple[dict[str, Any], str | None]:
         return _empty(), None
     response.raise_for_status()
     payload = response.json()
-    raw = base64.b64decode(payload.get("content", "")).decode("utf-8")
+    encrypted = base64.b64decode(payload.get("content", ""))
+    try:
+        raw = _fernet().decrypt(encrypted).decode("utf-8")
+    except InvalidToken as exc:
+        raise RuntimeError(
+            "Não foi possível descriptografar o backlog. A chave de criptografia "
+            "pode ter sido alterada enquanto ainda havia itens pendentes."
+        ) from exc
     data = json.loads(raw) if raw.strip() else _empty()
     if not isinstance(data, dict) or not isinstance(data.get("items"), list):
         raise RuntimeError(f"Backlog inválido em {BACKLOG_PATH}.")
@@ -80,10 +107,11 @@ def _load() -> tuple[dict[str, Any], str | None]:
 
 def _save(data: dict[str, Any], sha: str | None, message: str) -> None:
     token, repo, branch = _github_context()
-    content = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=False) + "\n"
+    plaintext = (json.dumps(data, ensure_ascii=False, indent=2, sort_keys=False) + "\n").encode("utf-8")
+    encrypted = _fernet().encrypt(plaintext)
     body: dict[str, Any] = {
         "message": message,
-        "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+        "content": base64.b64encode(encrypted).decode("ascii"),
         "branch": branch,
     }
     if sha:
