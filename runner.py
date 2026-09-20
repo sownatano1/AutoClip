@@ -129,7 +129,11 @@ class PreviewBufferClient:
         pass
 
     def add_video_to_queue(self, video_url: str, text: str) -> str:
-        print(f"PREVIEW: vídeo disponível no Cloudinary: {video_url}", flush=True)
+        public_safe = os.getenv("PUBLIC_REPO_SAFE_LOGS", "false").strip().lower() in {"1", "true", "yes", "on"}
+        if public_safe:
+            print("PREVIEW: vídeo enviado ao Cloudinary (URL ocultada em repositório público).", flush=True)
+        else:
+            print(f"PREVIEW: vídeo disponível no Cloudinary: {video_url}", flush=True)
         print(f"PREVIEW: legenda Buffer/TikTok:\n{text}\n", flush=True)
         return "PREVIEW_ONLY"
 
