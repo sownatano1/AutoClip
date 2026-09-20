@@ -201,9 +201,7 @@ jobs:
       AUTO_REVIEW: ${{ inputs.auto_review }}
       FINAL_VISUAL_ENHANCE: "true"
       HYBRID_AI_ENABLED: "true"
-      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       GROQ_VISION_MODEL: "qwen/qwen3.8-27b"
-      TWELVELABS_API_KEY: ${{ secrets.TWELVELABS_API_KEY }}
       TWELVELABS_READY_TIMEOUT: "40"
       TWELVELABS_ANALYZE_TIMEOUT: "75"
       CREATE_COVER: ${{ inputs.create_cover }}
@@ -212,16 +210,9 @@ jobs:
       AUTO_PUBLISH: ${{ inputs.publish_to_buffer }}
       MIN_CLIP_SECONDS: "25"
       MAX_CLIP_SECONDS: "150"
-      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
       CLOUDINARY_FOLDER: ${{ vars.CLOUDINARY_FOLDER || 'autoclips' }}
-      BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
-      BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
-      YOUTUBE_COOKIES_B64: ${{ secrets.YOUTUBE_COOKIES_B64 }}
       YOUTUBE_COOKIES_FILE: ${{ github.workspace }}/youtube-cookies.txt
       YOUTUBE_POT_PROVIDER_URL: http://127.0.0.1:4416
-      GITHUB_TOKEN: ${{ github.token }}
       AUTOCLIP_BACKLOG_BRANCH: ${{ github.event.repository.default_branch }}
 
     steps:
@@ -259,6 +250,10 @@ jobs:
 
       - name: Validar Cloudinary antes do processamento
         shell: bash
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
         run: |
           test -n "$CLOUDINARY_CLOUD_NAME"
           test -n "$CLOUDINARY_API_KEY"
@@ -271,6 +266,9 @@ jobs:
       - name: Validar Buffer e canal TikTok
         if: ${{ inputs.publish_to_buffer }}
         shell: bash
+        env:
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+          BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
         run: |
           python - <<'PY'
           import autoclip
@@ -308,9 +306,11 @@ jobs:
           docker ps --filter name=autoclips-pot-provider
 
       - name: Preparar sessão do YouTube
-        if: ${{ env.YOUTUBE_COOKIES_B64 != '' }}
         shell: bash
+        env:
+          YOUTUBE_COOKIES_B64: ${{ secrets.YOUTUBE_COOKIES_B64 }}
         run: |
+          test -n "$YOUTUBE_COOKIES_B64"
           printf '%s' "$YOUTUBE_COOKIES_B64" | base64 --decode > "$YOUTUBE_COOKIES_FILE"
           chmod 600 "$YOUTUBE_COOKIES_FILE"
           test -s "$YOUTUBE_COOKIES_FILE"
@@ -322,9 +322,24 @@ jobs:
         run: python runner.py
 
       - name: Validar configuração
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
         run: python autoclip.py --check
 
       - name: Processar vídeo com Quality v9.14 + Context Caption + Hybrid Intelligence opcional
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
+          BUFFER_CHANNEL_ID: ${{ secrets.BUFFER_CHANNEL_ID }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          TWELVELABS_API_KEY: ${{ secrets.TWELVELABS_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          AUTOCLIP_BACKLOG_ENCRYPTION_KEY: ${{ secrets.AUTOCLIP_BACKLOG_ENCRYPTION_KEY }}
         run: python runner.py
 
       - name: Limpar sessão temporária do YouTube
