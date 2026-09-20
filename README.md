@@ -163,9 +163,25 @@ Em **Settings → Secrets and variables → Actions → Repository secrets**:
 - `BUFFER_API_KEY`
 - `YOUTUBE_COOKIES_B64`
 
-Opcionais: `BUFFER_CHANNEL_ID`, `GROQ_API_KEY` e `TWELVELABS_API_KEY`. O Gemini não é necessário para a v9.13.
+Opcionais: `BUFFER_CHANNEL_ID`, `GROQ_API_KEY`, `TWELVELABS_API_KEY` e `AUTOCLIP_BACKLOG_ENCRYPTION_KEY`. O Gemini não é necessário para a v9.14.
 
 Repository variables opcionais: `GEMINI_MODEL` e `CLOUDINARY_FOLDER`.
+
+
+
+## Segurança para repositório público
+
+O AutoClip pode ser executado em um repositório público sem colocar credenciais no código.
+
+- As credenciais ficam somente em **GitHub Actions Secrets**.
+- Os workflows não são acionados por `pull_request`, `pull_request_target` ou `push`; usuários externos não recebem os Secrets do AutoClip por abrir forks/PRs.
+- A fila usa diretamente o workflow reutilizável `process-video.yml` com `max-parallel: 1`. Não existe mais um runner separado executando `gh run watch` enquanto outro runner processa o vídeo.
+- O backlog persistente usa `data/publish_backlog.enc` e é **criptografado antes de ser commitado**. URLs do Cloudinary e captions pendentes não são mais gravadas em JSON legível.
+- Secrets de Cloudinary, Buffer, Groq, TwelveLabs, YouTube e o token do GitHub são expostos somente às etapas que realmente precisam deles; instalação de pacotes e preparação do runner não recebem essas variáveis.
+- Arquivos locais de cookies, `.env*`, base64 e credenciais são bloqueados pelo `.gitignore`.
+
+Para uma chave de backlog independente do Buffer, você pode criar opcionalmente o Secret `AUTOCLIP_BACKLOG_ENCRYPTION_KEY`. Se ele não existir, o AutoClip deriva a chave de criptografia do `BUFFER_API_KEY`. Se usar essa fallback, evite rotacionar o Buffer enquanto ainda houver itens pendentes no backlog.
+
 
 ## Segurança
 
