@@ -201,6 +201,7 @@ jobs:
       AUTO_REVIEW: ${{ inputs.auto_review }}
       FINAL_VISUAL_ENHANCE: "true"
       HYBRID_AI_ENABLED: "true"
+      PUBLIC_REPO_SAFE_LOGS: ${{ github.event.repository.private == false }}
       GROQ_VISION_MODEL: "qwen/qwen3.8-27b"
       TWELVELABS_READY_TIMEOUT: "40"
       TWELVELABS_ANALYZE_TIMEOUT: "75"
