@@ -110,6 +110,9 @@ on:
         default: false
         type: boolean
 
+permissions:
+  contents: write
+
 jobs:
   prepare_queue:
     name: Preparar fila
@@ -173,8 +176,6 @@ jobs:
   queue:
     name: Vídeo ${{ matrix.index }}/${{ needs.prepare_queue.outputs.count }}
     needs: prepare_queue
-    permissions:
-      contents: write
     strategy:
       fail-fast: false
       max-parallel: 1
