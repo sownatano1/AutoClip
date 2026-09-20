@@ -6,3 +6,5 @@ numpy>=2.0,<3
 google-genai>=1.36,<2
 cloudinary>=1.40,<2
 Pillow>=10,<12
+
+cryptography>=43,<46
