@@ -11,6 +11,7 @@ import quality_v9_8 as q98
 import quality_v9_10_1 as q101
 import quality_v9_11 as q11
 import quality_v9_13 as q13
+import quality_v9_5 as q95
 import quality_v9_14 as q14
 
 
@@ -88,7 +89,7 @@ def _is_transcript_copy(hook: str, transcript: str) -> bool:
 def _valid_hook(hook: str, plan) -> bool:
     hook = _clean(hook, 120)
     words = _words(hook)
-    if not (4 <= len(words) <= 9):
+    if not (4 <= len(words) <= 8):
         return False
 
     low = hook.casefold()
@@ -260,7 +261,7 @@ FULL CLIP TRANSCRIPT:
 Write a NEW editorial hook that gives the viewer context for what this clip is about.
 
 STRICT RULES:
-- 4 to 8 words preferred, maximum 9.
+- 4 to 8 words. Never exceed 8.
 - Explain or tease the SPECIFIC subject, story, process, challenge, reveal, or opinion in this clip.
 - It must make sense before the viewer hears the dialogue.
 - DO NOT quote, paraphrase closely, or lift a memorable sentence from the transcript.
@@ -363,8 +364,12 @@ def _selector_with_context_hooks(
 
 def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_model: str) -> None:
     original = q13._hybrid_selector
+    original_extract_hook = q95._fallback_hook
     try:
         q13._hybrid_selector = _selector_with_context_hooks
+        # v9.5's historical fallback extracted a spoken line from the clip.
+        # v9.15 forbids that behavior: no safe contextual hook is better than a quote.
+        q95._fallback_hook = lambda segments, plan: ""
         autoclip.log(
             "Quality v9.15: Context Hook Guard · hook editorial contextual · cópia de fala proibida · fallback local"
         )
@@ -385,3 +390,4 @@ def run(url: str, clips_count: int, min_seconds: int, max_seconds: int, whisper_
         )
     finally:
         q13._hybrid_selector = original
+        q95._fallback_hook = original_extract_hook
