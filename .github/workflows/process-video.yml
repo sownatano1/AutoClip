@@ -244,10 +244,10 @@ jobs:
           python -m pip install -r requirements.txt
           python -m pip install -U "yt-dlp[default]" bgutil-ytdlp-pot-provider
 
-      - name: Validar código Quality v9.14 + Context Caption + Hybrid Intelligence + Final Visual Enhance + backlog
+      - name: Validar código Quality v9.15 + Context Hook + Context Caption + Hybrid Intelligence + Final Visual Enhance + backlog
         run: |
-          python -m py_compile quality_v9_11.py quality_v9_11_1.py quality_v9_12.py quality_v9_13.py quality_v9_14.py publish_backlog.py runner.py
-          python -c "import quality_v9_14, publish_backlog; print('Quality v9.14 + Context Caption + Hybrid Intelligence + Final Visual Enhance + backlog: import OK')"
+          python -m py_compile quality_v9_11.py quality_v9_11_1.py quality_v9_12.py quality_v9_13.py quality_v9_14.py quality_v9_15.py publish_backlog.py runner.py
+          python -c "import quality_v9_15, publish_backlog; print('Quality v9.15 + Context Hook + Context Caption + Hybrid Intelligence + Final Visual Enhance + backlog: import OK')"
 
       - name: Validar Cloudinary antes do processamento
         shell: bash
@@ -330,7 +330,7 @@ jobs:
           BUFFER_API_KEY: ${{ secrets.BUFFER_API_KEY }}
         run: python autoclip.py --check
 
-      - name: Processar vídeo com Quality v9.14 + Context Caption + Hybrid Intelligence opcional
+      - name: Processar vídeo com Quality v9.15 + Context Hook + Context Caption + Hybrid Intelligence opcional
         env:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
